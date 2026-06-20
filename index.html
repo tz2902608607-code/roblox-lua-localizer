@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Roblox 汉化脚本在线生成器，可根据英文原文与中文翻译生成 Roblox Lua 汉化脚本。"
+    />
+    <title>Roblox 汉化脚本在线生成器</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <div class="bg-layer">
+      <img id="bgImage" alt="" />
+    </div>
+    <div class="bg-mask"></div>
+
+    <header class="topbar">
+      <button id="menuBtn" class="menu-btn" type="button" aria-label="打开导航栏">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+      <div class="brand">
+        <strong>Roblox 汉化工具</strong>
+        <small>正式版</small>
+      </div>
+    </header>
+
+    <aside id="sidebar" class="sidebar" aria-hidden="true">
+      <div class="sidebar-head">
+        <strong>导航栏</strong>
+        <button id="closeMenuBtn" class="close-btn" type="button" aria-label="关闭导航栏">×</button>
+      </div>
+      <button class="nav-link active" type="button" data-page="home">首页：汉化生成</button>
+      <button class="nav-link" type="button" data-page="tutorial">使用教程</button>
+    </aside>
+    <div id="overlay" class="overlay"></div>
+
+    <main class="page-shell">
+      <section class="hero">
+        <p class="eyebrow">Roblox Localization Tool</p>
+        <h1>Roblox 汉化脚本在线生成器</h1>
+        <p class="hero-text">
+          面向 Roblox 脚本 UI 的中文辅助工具。先整理英文 UI 文本，再生成可复制、可下载的 Lua 汉化脚本。
+        </p>
+        <div class="hero-points">
+          <span>词条管理</span>
+          <span>普通扫描优先</span>
+          <span>JSON 导入导出</span>
+        </div>
+      </section>
+
+      <section id="homePage" class="page-view active">
+        <section class="card">
+          <div class="card-header">
+            <div>
+              <h2>基础参数配置</h2>
+              <p>推荐保持普通扫描模式。需要处理动态 UI 时，再考虑手动开启 Hook。</p>
+            </div>
+            <span class="badge">反作弊友好</span>
+          </div>
+
+          <div class="form-grid">
+            <label class="field switch-field">
+              <input id="hookEnabled" type="checkbox" />
+              <span class="switch-ui"></span>
+              <span>
+                <strong>启用 Hook 模式</strong>
+                <small>默认关闭。部分 Roblox 游戏存在反作弊，Hook 模式可能失效或被拦截。</small>
+              </span>
+            </label>
+
+            <label class="field">
+              <span>轮询扫描间隔（秒）</span>
+              <select id="scanInterval" class="native-select-hidden" aria-hidden="true" tabindex="-1">
+                <option value="1">1 秒</option>
+                <option value="2">2 秒</option>
+                <option value="3" selected>3 秒（推荐）</option>
+                <option value="5">5 秒</option>
+                <option value="10">10 秒</option>
+              </select>
+              <div class="custom-select" data-select="scanInterval">
+                <button id="scanSelectBtn" class="custom-select-btn" type="button" aria-expanded="false">
+                  <span id="scanSelectText">3 秒（推荐）</span>
+                  <i></i>
+                </button>
+                <div id="scanSelectPanel" class="custom-select-panel" role="listbox">
+                  <button type="button" data-value="1">1 秒</button>
+                  <button type="button" data-value="2">2 秒</button>
+                  <button type="button" data-value="3" class="selected">3 秒（推荐）</button>
+                  <button type="button" data-value="5">5 秒</button>
+                  <button type="button" data-value="10">10 秒</button>
+                </div>
+              </div>
+            </label>
+
+            <label class="field field-wide">
+              <span>远程脚本 Raw 链接</span>
+              <input
+                id="rawUrl"
+                type="url"
+                placeholder="例如：https://raw.githubusercontent.com/用户名/仓库/main/script.lua"
+                autocomplete="off"
+              />
+            </label>
+          </div>
+
+          <div class="notice warning">
+            <strong>Hook 使用建议</strong>
+            <span>默认关闭更稳。只有普通扫描无法及时处理动态文本，并且目标游戏不会拦截 Hook 时，再手动开启。</span>
+          </div>
+          <div class="notice danger">
+            <strong>安全提醒</strong>
+            <span>只填写可信 Raw 链接。第三方脚本可能存在账号、设备或隐私风险。</span>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-header">
+            <div>
+              <h2>翻译词条列表</h2>
+              <p>把提取到的英文 UI 文本放左侧，对应中文放右侧。</p>
+            </div>
+            <span id="entryCount" class="badge">0 条</span>
+          </div>
+
+          <div class="toolbar">
+            <button id="addRowBtn" class="btn primary" type="button">新增词条</button>
+            <button id="clearRowsBtn" class="btn danger-soft" type="button">清空词条</button>
+            <button id="importJsonBtn" class="btn" type="button">导入 JSON</button>
+            <button id="exportJsonBtn" class="btn" type="button">导出 JSON</button>
+            <input id="jsonFileInput" type="file" accept=".json,application/json" hidden />
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>英文原文</th>
+                  <th>中文翻译</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="translationBody"></tbody>
+            </table>
+          </div>
+
+          <div class="notice">
+            <strong>匹配提示</strong>
+            <span>生成时会自动按英文长度排序，长词条优先匹配，减少短词误替换。</span>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-header">
+            <div>
+              <h2>生成完成的 Lua 脚本</h2>
+              <p>确认词条无误后生成代码，可直接复制或保存为 `.lua` 文件。</p>
+            </div>
+            <span id="scriptStatus" class="badge muted">未生成</span>
+          </div>
+
+          <div class="toolbar">
+            <button id="generateBtn" class="btn primary" type="button">生成脚本</button>
+            <button id="copyBtn" class="btn" type="button">复制代码</button>
+            <button id="downloadBtn" class="btn" type="button">下载 .lua</button>
+          </div>
+
+          <textarea
+            id="output"
+            spellcheck="false"
+            placeholder="点击“生成脚本”后，代码会显示在这里。"
+          ></textarea>
+        </section>
+      </section>
+
+      <section id="tutorialPage" class="page-view">
+        <section class="card guide-card">
+          <div class="card-header">
+            <div>
+              <h2>使用教程</h2>
+              <p>建议按“提取文本 -> 整理词条 -> 生成脚本”的顺序使用。</p>
+            </div>
+            <span class="badge">推荐流程</span>
+          </div>
+
+          <div class="guide-list">
+            <article>
+              <span class="step">1</span>
+              <div>
+                <h3>先提取当前页面 UI 文本</h3>
+                <p>
+                  建议搭配 UI 文本提取脚本一起使用。它可以提取当前页面上的 UI 英文文本，方便你复制到汉化词条里。
+                </p>
+                <pre><code id="extractCode">loadstring(game:HttpGet("https://raw.githubusercontent.com/suif666/suif/refs/heads/main/gui%E6%96%87%E6%9C%AC%E8%8E%B7%E5%8F%96.lua"))()</code></pre>
+                <button id="copyExtractBtn" class="btn" type="button">复制提取脚本</button>
+              </div>
+            </article>
+
+            <article>
+              <span class="step">2</span>
+              <div>
+                <h3>填写英文原文和中文翻译</h3>
+                <p>
+                  在首页的词条列表中，把提取到的英文 UI 文本填到“英文原文”，再把对应中文填到“中文翻译”。如果同一段文本重复出现，只保留一条即可。
+                </p>
+              </div>
+            </article>
+
+            <article>
+              <span class="step">3</span>
+              <div>
+                <h3>选择是否启用 Hook 模式</h3>
+                <p>
+                  默认不要开启 Hook。大多数游戏存在反作弊，普通扫描模式更稳。只有在普通扫描模式无法及时处理动态变化文本，且你确认目标游戏不会拦截 Hook 时，再手动开启。
+                </p>
+              </div>
+            </article>
+
+            <article>
+              <span class="step">4</span>
+              <div>
+                <h3>填写远程脚本 Raw 链接</h3>
+                <p>
+                  如果你需要汉化某个外部脚本，就把它的 Raw 链接填入输入框。不要填写不可信链接，避免加载恶意代码。
+                </p>
+              </div>
+            </article>
+
+            <article>
+              <span class="step">5</span>
+              <div>
+                <h3>生成、复制并运行</h3>
+                <p>
+                  点击“生成脚本”，确认代码无误后复制到执行器运行。也可以下载为 `.lua` 文件，方便之后继续保存或分享。
+                </p>
+              </div>
+            </article>
+          </div>
+        </section>
+      </section>
+
+      <footer>
+        <p>
+          温馨提示：本工具仅用于学习交流，生成的脚本请勿用于违规用途。使用第三方修改脚本可能存在账号与设备风险，请自行承担。
+        </p>
+      </footer>
+    </main>
+
+    <div id="dialogMask" class="dialog-mask" aria-hidden="true">
+      <section class="dialog-card" role="dialog" aria-modal="true" aria-labelledby="dialogTitle">
+        <div class="dialog-orb"></div>
+        <p id="dialogKicker" class="dialog-kicker">操作确认</p>
+        <h2 id="dialogTitle">确认操作</h2>
+        <p id="dialogMessage">确定要继续吗？</p>
+        <div class="dialog-actions">
+          <button id="dialogCancelBtn" class="btn" type="button">取消</button>
+          <button id="dialogConfirmBtn" class="btn primary" type="button">确认</button>
+        </div>
+      </section>
+    </div>
+
+    <div id="toast" class="toast" role="status" aria-live="polite">
+      <span class="toast-icon">i</span>
+      <span id="toastText"></span>
+    </div>
+    <script src="./script.js"></script>
+  </body>
+</html>
