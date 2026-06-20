@@ -5,6 +5,7 @@ const state = {
   translations: [
     { en: "", cn: "" },
   ],
+  translatorProvider: "youdao",
 };
 
 const els = {
@@ -31,6 +32,12 @@ const els = {
   clearRowsBtn: document.querySelector("#clearRowsBtn"),
   importJsonBtn: document.querySelector("#importJsonBtn"),
   exportJsonBtn: document.querySelector("#exportJsonBtn"),
+  autoTranslateBtn: document.querySelector("#autoTranslateBtn"),
+  translatorProvider: document.querySelector("#translatorProvider"),
+  translatorSelect: document.querySelector(".translator-select"),
+  translatorSelectBtn: document.querySelector("#translatorSelectBtn"),
+  translatorSelectText: document.querySelector("#translatorSelectText"),
+  translatorSelectOptions: document.querySelectorAll("#translatorSelectPanel button"),
   jsonFileInput: document.querySelector("#jsonFileInput"),
   generateBtn: document.querySelector("#generateBtn"),
   copyBtn: document.querySelector("#copyBtn"),
@@ -133,8 +140,33 @@ function closeScanSelect() {
 
 function toggleScanSelect() {
   const willOpen = !els.scanSelect.classList.contains("open");
+  closeTranslatorSelect();
   els.scanSelect.classList.toggle("open", willOpen);
   els.scanSelectBtn.setAttribute("aria-expanded", String(willOpen));
+}
+
+function updateTranslatorProvider(provider) {
+  state.translatorProvider = provider;
+  const option = [...els.translatorProvider.options].find((item) => item.value === provider);
+  const label = option?.textContent || "有道翻译";
+
+  els.translatorProvider.value = provider;
+  els.translatorSelectText.textContent = label;
+  els.translatorSelectOptions.forEach((button) => {
+    button.classList.toggle("selected", button.dataset.value === provider);
+  });
+}
+
+function closeTranslatorSelect() {
+  els.translatorSelect.classList.remove("open");
+  els.translatorSelectBtn.setAttribute("aria-expanded", "false");
+}
+
+function toggleTranslatorSelect() {
+  const willOpen = !els.translatorSelect.classList.contains("open");
+  closeScanSelect();
+  els.translatorSelect.classList.toggle("open", willOpen);
+  els.translatorSelectBtn.setAttribute("aria-expanded", String(willOpen));
 }
 
 function openMenu() {
@@ -168,6 +200,7 @@ function saveState() {
     scanInterval: els.scanInterval.value,
     rawUrl: els.rawUrl.value.trim(),
     translations: state.translations,
+    translatorProvider: state.translatorProvider,
   };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
 }
@@ -186,6 +219,7 @@ function loadState() {
     els.hookEnabled.checked = currentRaw ? (payload.hookEnabled ?? false) : false;
     els.scanInterval.value = String(payload.scanInterval || "3");
     els.rawUrl.value = payload.rawUrl || "";
+    updateTranslatorProvider(payload.translatorProvider || "youdao");
 
     if (Array.isArray(payload.translations)) {
       state.translations = payload.translations
@@ -295,6 +329,112 @@ function getCleanTranslations() {
       return true;
     })
     .sort((a, b) => b.en.length - a.en.length);
+}
+
+function getRowsToTranslate() {
+  return state.translations
+    .map((item, index) => ({
+      index,
+      en: item.en.trim(),
+      cn: item.cn.trim(),
+    }))
+    .filter((item) => item.en);
+}
+
+async function translateWithGoogle(text) {
+  const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt=t&q=${encodeURIComponent(text)}`;
+  const response = await fetch(url);
+  if (!response.ok) throw new Error("谷歌翻译接口请求失败");
+  const data = await response.json();
+  const translated = data?.[0]?.map((part) => part?.[0] || "").join("").trim();
+  if (!translated) throw new Error("谷歌翻译没有返回有效结果");
+  return translated;
+}
+
+async function translateWithYoudao(text) {
+  const url = `https://fanyi.youdao.com/translate?doctype=json&type=AUTO&i=${encodeURIComponent(text)}`;
+  const response = await fetch(url);
+  if (!response.ok) throw new Error("有道翻译接口请求失败");
+  const data = await response.json();
+  const translated = data?.translateResult?.flat?.()?.map((item) => item?.tgt || "").join("").trim();
+  if (!translated) throw new Error("有道翻译没有返回有效结果");
+  return translated;
+}
+
+async function translateWithBing(text) {
+  const response = await fetch("https://api-edge.cognitive.microsofttranslator.com/translate?api-version=3.0&from=en&to=zh-Hans", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify([{ Text: text }]),
+  });
+  if (!response.ok) throw new Error("必应翻译接口请求失败");
+  const data = await response.json();
+  const translated = data?.[0]?.translations?.[0]?.text?.trim();
+  if (!translated) throw new Error("必应翻译没有返回有效结果");
+  return translated;
+}
+
+async function translateTextByProvider(text) {
+  if (state.translatorProvider === "google") {
+    return translateWithGoogle(text);
+  }
+
+  if (state.translatorProvider === "bing") {
+    return translateWithBing(text);
+  }
+
+  return translateWithYoudao(text);
+}
+
+async function autoTranslateRows() {
+  const rows = getRowsToTranslate();
+  if (rows.length === 0) {
+    showToast("请先填写需要翻译的英文原文。");
+    return;
+  }
+
+  const hasExistingChinese = rows.some((row) => row.cn);
+  if (hasExistingChinese) {
+    const confirmed = await showDialog({
+      kicker: "自动翻译",
+      title: "是否覆盖已有中文翻译？",
+      message: "检测到部分词条已经填写了中文。继续自动翻译会用接口返回结果覆盖这些中文内容。",
+      confirmText: "覆盖并翻译",
+      cancelText: "取消",
+    });
+
+    if (!confirmed) return;
+  }
+
+  const providerLabel = {
+    youdao: "有道翻译",
+    bing: "必应翻译",
+    google: "谷歌翻译",
+  }[state.translatorProvider];
+
+  els.autoTranslateBtn.disabled = true;
+  els.autoTranslateBtn.textContent = "翻译中...";
+
+  let successCount = 0;
+  try {
+    for (const row of rows) {
+      const translated = await translateTextByProvider(row.en);
+      state.translations[row.index].cn = translated;
+      successCount += 1;
+      renderRows();
+      saveState();
+    }
+
+    showToast(`${providerLabel}翻译完成，已处理 ${successCount} 条。`);
+  } catch (error) {
+    const extra = state.translatorProvider === "google" ? "谷歌翻译可能需要 VPN。" : "可尝试切换其它接口。";
+    showToast(`${providerLabel}翻译失败：${error.message}。${extra}`);
+  } finally {
+    els.autoTranslateBtn.disabled = false;
+    els.autoTranslateBtn.textContent = "自动翻译";
+  }
 }
 
 function escapeLuaString(value) {
@@ -639,6 +779,20 @@ els.scanSelectOptions.forEach((button) => {
   });
 });
 
+els.translatorSelectBtn.addEventListener("click", (event) => {
+  event.stopPropagation();
+  toggleTranslatorSelect();
+});
+
+els.translatorSelectOptions.forEach((button) => {
+  button.addEventListener("click", (event) => {
+    event.stopPropagation();
+    updateTranslatorProvider(button.dataset.value);
+    saveState();
+    closeTranslatorSelect();
+  });
+});
+
 els.addRowBtn.addEventListener("click", () => addRow());
 
 els.clearRowsBtn.addEventListener("click", async () => {
@@ -669,6 +823,7 @@ els.jsonFileInput.addEventListener("change", () => {
 els.generateBtn.addEventListener("click", generateScript);
 els.copyBtn.addEventListener("click", copyCode);
 els.downloadBtn.addEventListener("click", downloadLua);
+els.autoTranslateBtn.addEventListener("click", autoTranslateRows);
 
 els.copyExtractBtn.addEventListener("click", () => {
   copyText(els.extractCode.textContent.trim(), "提取 UI 文本脚本已复制。");
@@ -682,6 +837,7 @@ els.copyExtractBtn.addEventListener("click", () => {
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
     closeScanSelect();
+    closeTranslatorSelect();
   }
 
   if (event.key === "Escape") {
@@ -693,9 +849,14 @@ document.addEventListener("click", (event) => {
   if (!els.scanSelect.contains(event.target)) {
     closeScanSelect();
   }
+
+  if (!els.translatorSelect.contains(event.target)) {
+    closeTranslatorSelect();
+  }
 });
 
 loadState();
 updateScanSelect();
+updateTranslatorProvider(state.translatorProvider);
 renderRows();
 loadRandomBackground();
