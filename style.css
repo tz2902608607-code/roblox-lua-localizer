@@ -731,21 +731,26 @@ textarea:focus {
 
 .translator-panel {
   display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 14px;
-  align-items: center;
+  gap: 13px;
   margin-bottom: 16px;
-  padding: 14px;
-  border: 1px solid rgba(157, 231, 255, 0.18);
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.055);
+  padding: 15px;
+  border: 1px solid rgba(157, 231, 255, 0.24);
+  border-radius: 18px;
+  background:
+    linear-gradient(135deg, rgba(78, 203, 255, 0.12), rgba(255, 255, 255, 0.05)),
+    rgba(255, 255, 255, 0.045);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
-.translator-panel strong {
+.translator-copy {
+  display: grid;
+  gap: 5px;
+}
+
+.translator-title {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 4px;
   color: #e9faff;
 }
 
@@ -760,7 +765,7 @@ textarea:focus {
   letter-spacing: 0.04em;
 }
 
-.translator-panel span {
+.translator-copy > span {
   display: block;
   color: var(--muted);
   font-size: 0.88rem;
@@ -768,14 +773,25 @@ textarea:focus {
 }
 
 .translator-actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 8px;
+  display: grid;
+  grid-template-columns: minmax(190px, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.translator-field {
+  display: grid;
+  gap: 6px;
+}
+
+.translator-field > span {
+  color: #cfeeff;
+  font-size: 0.78rem;
+  font-weight: 850;
 }
 
 .translator-native-select {
-  min-width: 210px;
+  width: 100%;
   min-height: 42px;
   padding: 0 40px 0 13px;
   appearance: none;
@@ -1200,18 +1216,12 @@ footer {
   }
 
   .translator-panel {
-    grid-template-columns: 1fr;
     gap: 10px;
     padding: 12px;
   }
 
   .translator-actions {
-    justify-content: stretch;
-  }
-
-  .translator-native-select,
-  .translator-actions .btn {
-    flex: 1 1 calc(50% - 8px);
+    grid-template-columns: 1fr;
   }
 
   .translator-native-select {

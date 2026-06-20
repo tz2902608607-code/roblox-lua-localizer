@@ -317,9 +317,23 @@ function getRowsToTranslate() {
     .filter((item) => item.en);
 }
 
+async function fetchWithTimeout(url, options = {}, timeout = 8000) {
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), timeout);
+
+  try {
+    return await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+  } finally {
+    window.clearTimeout(timer);
+  }
+}
+
 async function translateWithGoogle(text) {
   const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt=t&q=${encodeURIComponent(text)}`;
-  const response = await fetch(url);
+  const response = await fetchWithTimeout(url);
   if (!response.ok) throw new Error("谷歌翻译接口请求失败");
   const data = await response.json();
   const translated = data?.[0]?.map((part) => part?.[0] || "").join("").trim();
@@ -329,7 +343,7 @@ async function translateWithGoogle(text) {
 
 async function translateWithYoudao(text) {
   const url = `https://fanyi.youdao.com/translate?doctype=json&type=AUTO&i=${encodeURIComponent(text)}`;
-  const response = await fetch(url);
+  const response = await fetchWithTimeout(url);
   if (!response.ok) throw new Error("有道翻译接口请求失败");
   const data = await response.json();
   const translated = data?.translateResult?.flat?.()?.map((item) => item?.tgt || "").join("").trim();
@@ -338,7 +352,7 @@ async function translateWithYoudao(text) {
 }
 
 async function translateWithBing(text) {
-  const response = await fetch("https://api-edge.cognitive.microsofttranslator.com/translate?api-version=3.0&from=en&to=zh-Hans", {
+  const response = await fetchWithTimeout("https://api-edge.cognitive.microsofttranslator.com/translate?api-version=3.0&from=en&to=zh-Hans", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -354,7 +368,7 @@ async function translateWithBing(text) {
 
 async function translateWithFallback(text) {
   const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|zh-CN`;
-  const response = await fetch(url);
+  const response = await fetchWithTimeout(url);
   if (!response.ok) throw new Error("备用翻译接口请求失败");
   const data = await response.json();
   const translated = data?.responseData?.translatedText?.trim();
@@ -408,6 +422,7 @@ async function autoTranslateRows() {
 
   els.autoTranslateBtn.disabled = true;
   els.autoTranslateBtn.textContent = "翻译中...";
+  showToast(`正在调用${providerLabel}，请稍等。`);
 
   let successCount = 0;
   try {
@@ -421,7 +436,7 @@ async function autoTranslateRows() {
 
     showToast(`${providerLabel}翻译完成，已处理 ${successCount} 条。`);
   } catch (error) {
-    const extra = state.translatorProvider === "google" ? "谷歌翻译可能需要 VPN。" : "可尝试切换其它接口。";
+    const extra = state.translatorProvider === "google" ? "谷歌翻译可能需要 VPN。" : "已尝试备用接口，仍未成功。";
     showToast(`${providerLabel}翻译失败：${error.message}。${extra}`);
   } finally {
     els.autoTranslateBtn.disabled = false;
