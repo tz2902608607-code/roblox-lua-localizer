@@ -8,6 +8,66 @@ const state = {
   translatorProvider: "youdao",
 };
 
+const LOCAL_TRANSLATION_DICTIONARY = {
+  play: "开始",
+  start: "开始",
+  begin: "开始",
+  settings: "设置",
+  setting: "设置",
+  shop: "商店",
+  store: "商店",
+  inventory: "背包",
+  backpack: "背包",
+  items: "物品",
+  item: "物品",
+  close: "关闭",
+  open: "打开",
+  back: "返回",
+  next: "下一步",
+  previous: "上一步",
+  continue: "继续",
+  confirm: "确认",
+  cancel: "取消",
+  yes: "是",
+  no: "否",
+  ok: "确定",
+  buy: "购买",
+  sell: "出售",
+  equip: "装备",
+  unequip: "卸下",
+  use: "使用",
+  claim: "领取",
+  reward: "奖励",
+  rewards: "奖励",
+  daily: "每日",
+  quest: "任务",
+  quests: "任务",
+  level: "等级",
+  upgrade: "升级",
+  delete: "删除",
+  save: "保存",
+  load: "加载",
+  search: "搜索",
+  join: "加入",
+  leave: "离开",
+  exit: "退出",
+  menu: "菜单",
+  home: "主页",
+  profile: "资料",
+  player: "玩家",
+  players: "玩家",
+  coins: "金币",
+  gems: "宝石",
+  money: "金钱",
+  health: "生命值",
+  damage: "伤害",
+  speed: "速度",
+  power: "力量",
+  strength: "力量",
+  rebirth: "重生",
+  teleport: "传送",
+};
+
 const els = {
   bgImage: document.querySelector("#bgImage"),
   bgLayer: document.querySelector(".bg-layer"),
@@ -34,6 +94,7 @@ const els = {
   exportJsonBtn: document.querySelector("#exportJsonBtn"),
   autoTranslateBtn: document.querySelector("#autoTranslateBtn"),
   translatorProvider: document.querySelector("#translatorProvider"),
+  translateStatus: document.querySelector("#translateStatus"),
   jsonFileInput: document.querySelector("#jsonFileInput"),
   generateBtn: document.querySelector("#generateBtn"),
   copyBtn: document.querySelector("#copyBtn"),
@@ -317,6 +378,20 @@ function getRowsToTranslate() {
     .filter((item) => item.en);
 }
 
+function updateTranslateStatus(text, type = "") {
+  els.translateStatus.textContent = text;
+  els.translateStatus.className = `translator-status ${type}`.trim();
+}
+
+function translateWithLocalDictionary(text) {
+  const key = text.trim().toLowerCase();
+  if (LOCAL_TRANSLATION_DICTIONARY[key]) {
+    return LOCAL_TRANSLATION_DICTIONARY[key];
+  }
+
+  return "";
+}
+
 async function fetchWithTimeout(url, options = {}, timeout = 8000) {
   const controller = new AbortController();
   const timer = window.setTimeout(() => controller.abort(), timeout);
@@ -379,6 +454,9 @@ async function translateWithFallback(text) {
 }
 
 async function translateTextByProvider(text) {
+  const localResult = translateWithLocalDictionary(text);
+  if (localResult) return localResult;
+
   const primaryTasks = {
     youdao: translateWithYoudao,
     bing: translateWithBing,
@@ -398,6 +476,7 @@ async function autoTranslateRows() {
   const rows = getRowsToTranslate();
   if (rows.length === 0) {
     showToast("请先填写需要翻译的英文原文。");
+    updateTranslateStatus("缺少英文", "error");
     return;
   }
 
@@ -422,22 +501,32 @@ async function autoTranslateRows() {
 
   els.autoTranslateBtn.disabled = true;
   els.autoTranslateBtn.textContent = "翻译中...";
+  updateTranslateStatus("翻译中", "working");
   showToast(`正在调用${providerLabel}，请稍等。`);
 
   let successCount = 0;
+  let failCount = 0;
   try {
     for (const row of rows) {
-      const translated = await translateTextByProvider(row.en);
-      state.translations[row.index].cn = translated;
-      successCount += 1;
+      try {
+        const translated = await translateTextByProvider(row.en);
+        state.translations[row.index].cn = translated;
+        successCount += 1;
+      } catch {
+        failCount += 1;
+      }
       renderRows();
       saveState();
     }
 
-    showToast(`${providerLabel}翻译完成，已处理 ${successCount} 条。`);
-  } catch (error) {
-    const extra = state.translatorProvider === "google" ? "谷歌翻译可能需要 VPN。" : "已尝试备用接口，仍未成功。";
-    showToast(`${providerLabel}翻译失败：${error.message}。${extra}`);
+    if (successCount > 0) {
+      updateTranslateStatus(`完成 ${successCount} 条`, "done");
+      showToast(`${providerLabel}翻译完成，成功 ${successCount} 条${failCount ? `，失败 ${failCount} 条` : ""}。`);
+    } else {
+      updateTranslateStatus("翻译失败", "error");
+      const extra = state.translatorProvider === "google" ? "谷歌翻译可能需要 VPN。" : "在线接口可能被跨域拦截。";
+      showToast(`${providerLabel}翻译失败：${extra}`);
+    }
   } finally {
     els.autoTranslateBtn.disabled = false;
     els.autoTranslateBtn.textContent = "自动翻译";

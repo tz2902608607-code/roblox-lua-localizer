@@ -731,9 +731,9 @@ textarea:focus {
 
 .translator-panel {
   display: grid;
-  gap: 13px;
+  gap: 12px;
   margin-bottom: 16px;
-  padding: 15px;
+  padding: 13px;
   border: 1px solid rgba(157, 231, 255, 0.24);
   border-radius: 18px;
   background:
@@ -744,7 +744,14 @@ textarea:focus {
 
 .translator-copy {
   display: grid;
-  gap: 5px;
+  gap: 6px;
+}
+
+.translator-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
 }
 
 .translator-title {
@@ -752,6 +759,7 @@ textarea:focus {
   align-items: center;
   gap: 8px;
   color: #e9faff;
+  font-size: 1rem;
 }
 
 .translator-title small {
@@ -765,11 +773,40 @@ textarea:focus {
   letter-spacing: 0.04em;
 }
 
+.translator-status {
+  flex: 0 0 auto;
+  padding: 4px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 0.74rem;
+  font-weight: 850;
+}
+
+.translator-status.working {
+  color: #04111e;
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--primary), var(--primary-2));
+}
+
+.translator-status.done {
+  color: #bcffd7;
+  border-color: rgba(82, 255, 158, 0.24);
+  background: rgba(82, 255, 158, 0.1);
+}
+
+.translator-status.error {
+  color: #ffd2dc;
+  border-color: rgba(255, 77, 109, 0.28);
+  background: rgba(255, 77, 109, 0.12);
+}
+
 .translator-copy > span {
   display: block;
   color: var(--muted);
-  font-size: 0.88rem;
-  line-height: 1.6;
+  font-size: 0.84rem;
+  line-height: 1.5;
 }
 
 .translator-actions {
@@ -786,13 +823,13 @@ textarea:focus {
 
 .translator-field > span {
   color: #cfeeff;
-  font-size: 0.78rem;
+  font-size: 0.74rem;
   font-weight: 850;
 }
 
 .translator-native-select {
   width: 100%;
-  min-height: 42px;
+  min-height: 40px;
   padding: 0 40px 0 13px;
   appearance: none;
   background:
@@ -1216,16 +1253,34 @@ footer {
   }
 
   .translator-panel {
-    gap: 10px;
-    padding: 12px;
+    gap: 9px;
+    padding: 11px;
+    border-radius: 15px;
+  }
+
+  .translator-head {
+    align-items: flex-start;
+  }
+
+  .translator-title {
+    flex-wrap: wrap;
+    gap: 6px;
+    font-size: 0.96rem;
+  }
+
+  .translator-copy > span {
+    font-size: 0.8rem;
+    line-height: 1.45;
   }
 
   .translator-actions {
     grid-template-columns: 1fr;
+    gap: 8px;
   }
 
   .translator-native-select {
     min-width: 0;
+    min-height: 38px;
   }
 
   .table-wrap {

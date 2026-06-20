@@ -154,8 +154,11 @@
 
           <div class="translator-panel">
             <div class="translator-copy">
-              <strong class="translator-title">自动翻译 <small>Beta</small></strong>
-              <span>选择翻译接口后，把已有英文原文批量填入中文翻译列。</span>
+              <div class="translator-head">
+                <strong class="translator-title">自动翻译 <small>Beta</small></strong>
+                <span id="translateStatus" class="translator-status">待翻译</span>
+              </div>
+              <span>优先使用本地常用 UI 词典，再尝试在线接口。</span>
             </div>
             <div class="translator-actions" aria-label="选择翻译接口">
               <label class="translator-field">
