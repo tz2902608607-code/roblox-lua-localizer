@@ -774,8 +774,17 @@ textarea:focus {
   gap: 8px;
 }
 
-.translator-select {
+.translator-native-select {
   min-width: 210px;
+  min-height: 42px;
+  padding: 0 40px 0 13px;
+  appearance: none;
+  background:
+    linear-gradient(45deg, transparent 50%, var(--primary-2) 50%) right 17px center / 7px 7px no-repeat,
+    linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.04)),
+    var(--input);
+  cursor: pointer;
+  font-weight: 800;
 }
 
 .table-wrap {
@@ -1200,12 +1209,12 @@ footer {
     justify-content: stretch;
   }
 
-  .translator-select,
+  .translator-native-select,
   .translator-actions .btn {
     flex: 1 1 calc(50% - 8px);
   }
 
-  .translator-select {
+  .translator-native-select {
     min-width: 0;
   }
 

@@ -158,22 +158,11 @@
               <span>选择接口后，点击按钮把已有英文原文批量翻译为中文。</span>
             </div>
             <div class="translator-actions" aria-label="选择翻译接口">
-              <select id="translatorProvider" class="native-select-hidden" aria-hidden="true" tabindex="-1">
+              <select id="translatorProvider" class="translator-native-select" aria-label="选择翻译接口">
                 <option value="youdao" selected>有道翻译</option>
                 <option value="bing">必应翻译</option>
                 <option value="google">谷歌翻译（需要 VPN）</option>
               </select>
-              <div class="custom-select translator-select" data-select="translatorProvider">
-                <button id="translatorSelectBtn" class="custom-select-btn" type="button" aria-expanded="false">
-                  <span id="translatorSelectText">有道翻译</span>
-                  <i></i>
-                </button>
-                <div id="translatorSelectPanel" class="custom-select-panel" role="listbox">
-                  <button type="button" data-value="youdao" class="selected">有道翻译</button>
-                  <button type="button" data-value="bing">必应翻译</button>
-                  <button type="button" data-value="google">谷歌翻译（需要 VPN）</button>
-                </div>
-              </div>
               <button id="autoTranslateBtn" class="btn primary" type="button">自动翻译</button>
             </div>
           </div>

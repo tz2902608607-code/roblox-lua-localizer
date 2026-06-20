@@ -34,10 +34,6 @@ const els = {
   exportJsonBtn: document.querySelector("#exportJsonBtn"),
   autoTranslateBtn: document.querySelector("#autoTranslateBtn"),
   translatorProvider: document.querySelector("#translatorProvider"),
-  translatorSelect: document.querySelector(".translator-select"),
-  translatorSelectBtn: document.querySelector("#translatorSelectBtn"),
-  translatorSelectText: document.querySelector("#translatorSelectText"),
-  translatorSelectOptions: document.querySelectorAll("#translatorSelectPanel button"),
   jsonFileInput: document.querySelector("#jsonFileInput"),
   generateBtn: document.querySelector("#generateBtn"),
   copyBtn: document.querySelector("#copyBtn"),
@@ -140,33 +136,13 @@ function closeScanSelect() {
 
 function toggleScanSelect() {
   const willOpen = !els.scanSelect.classList.contains("open");
-  closeTranslatorSelect();
   els.scanSelect.classList.toggle("open", willOpen);
   els.scanSelectBtn.setAttribute("aria-expanded", String(willOpen));
 }
 
 function updateTranslatorProvider(provider) {
   state.translatorProvider = provider;
-  const option = [...els.translatorProvider.options].find((item) => item.value === provider);
-  const label = option?.textContent || "有道翻译";
-
   els.translatorProvider.value = provider;
-  els.translatorSelectText.textContent = label;
-  els.translatorSelectOptions.forEach((button) => {
-    button.classList.toggle("selected", button.dataset.value === provider);
-  });
-}
-
-function closeTranslatorSelect() {
-  els.translatorSelect.classList.remove("open");
-  els.translatorSelectBtn.setAttribute("aria-expanded", "false");
-}
-
-function toggleTranslatorSelect() {
-  const willOpen = !els.translatorSelect.classList.contains("open");
-  closeScanSelect();
-  els.translatorSelect.classList.toggle("open", willOpen);
-  els.translatorSelectBtn.setAttribute("aria-expanded", String(willOpen));
 }
 
 function openMenu() {
@@ -376,16 +352,32 @@ async function translateWithBing(text) {
   return translated;
 }
 
+async function translateWithFallback(text) {
+  const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|zh-CN`;
+  const response = await fetch(url);
+  if (!response.ok) throw new Error("备用翻译接口请求失败");
+  const data = await response.json();
+  const translated = data?.responseData?.translatedText?.trim();
+  if (!translated || translated.toLowerCase() === text.toLowerCase()) {
+    throw new Error("备用翻译没有返回有效结果");
+  }
+  return translated;
+}
+
 async function translateTextByProvider(text) {
-  if (state.translatorProvider === "google") {
-    return translateWithGoogle(text);
-  }
+  const primaryTasks = {
+    youdao: translateWithYoudao,
+    bing: translateWithBing,
+    google: translateWithGoogle,
+  };
 
-  if (state.translatorProvider === "bing") {
-    return translateWithBing(text);
-  }
+  const primary = primaryTasks[state.translatorProvider] || translateWithYoudao;
 
-  return translateWithYoudao(text);
+  try {
+    return await primary(text);
+  } catch {
+    return translateWithFallback(text);
+  }
 }
 
 async function autoTranslateRows() {
@@ -779,18 +771,9 @@ els.scanSelectOptions.forEach((button) => {
   });
 });
 
-els.translatorSelectBtn.addEventListener("click", (event) => {
-  event.stopPropagation();
-  toggleTranslatorSelect();
-});
-
-els.translatorSelectOptions.forEach((button) => {
-  button.addEventListener("click", (event) => {
-    event.stopPropagation();
-    updateTranslatorProvider(button.dataset.value);
-    saveState();
-    closeTranslatorSelect();
-  });
+els.translatorProvider.addEventListener("change", () => {
+  updateTranslatorProvider(els.translatorProvider.value);
+  saveState();
 });
 
 els.addRowBtn.addEventListener("click", () => addRow());
@@ -837,7 +820,6 @@ els.copyExtractBtn.addEventListener("click", () => {
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
     closeScanSelect();
-    closeTranslatorSelect();
   }
 
   if (event.key === "Escape") {
@@ -848,10 +830,6 @@ document.addEventListener("keydown", (event) => {
 document.addEventListener("click", (event) => {
   if (!els.scanSelect.contains(event.target)) {
     closeScanSelect();
-  }
-
-  if (!els.translatorSelect.contains(event.target)) {
-    closeTranslatorSelect();
   }
 });
 
