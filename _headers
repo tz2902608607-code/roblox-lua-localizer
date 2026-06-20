@@ -1,0 +1,15 @@
+/*
+  Cache-Control: no-store, no-cache, must-revalidate, max-age=0
+  X-Content-Type-Options: nosniff
+
+/*.html
+  Cache-Control: no-store, no-cache, must-revalidate, max-age=0
+  Content-Type: text/html; charset=utf-8
+
+/*.css
+  Cache-Control: no-store, no-cache, must-revalidate, max-age=0
+  Content-Type: text/css; charset=utf-8
+
+/*.js
+  Cache-Control: no-store, no-cache, must-revalidate, max-age=0
+  Content-Type: application/javascript; charset=utf-8
