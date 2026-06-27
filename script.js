@@ -5,7 +5,8 @@ const state = {
   translations: [
     { en: "", cn: "" },
   ],
-  translatorProvider: "youdao",
+  translatorProvider: "auto",
+  apiKeys: {},
 };
 
 const LOCAL_TRANSLATION_DICTIONARY = {
@@ -68,6 +69,55 @@ const LOCAL_TRANSLATION_DICTIONARY = {
   teleport: "传送",
 };
 
+const TRANSLATOR_LABELS = {
+  auto: "自动选择",
+  local: "本地词典",
+  mymemory: "MyMemory 翻译",
+  deeplx: "DeepLX 翻译",
+  libre: "LibreTranslate 翻译",
+  lingva: "Lingva 翻译",
+  youdao: "有道翻译",
+  bing: "必应翻译",
+  google: "谷歌翻译",
+  baidu: "百度翻译",
+  yandex: "Yandex 翻译",
+  deepl: "DeepL 翻译",
+  deepseek: "DeepSeek AI 翻译",
+  doubao: "豆包 AI 翻译",
+  kimi: "Kimi AI 翻译",
+  openai: "ChatGPT AI 翻译",
+  customai: "自定义 AI",
+};
+
+// 自动选择时的接口尝试顺序（免费接口优先，AI接口需要Key放后面）
+const AUTO_TRANSLATOR_ORDER = ["mymemory", "deeplx", "lingva", "libre", "google", "youdao", "bing"];
+
+// 需要 API Key 的接口配置
+const KEY_PROVIDERS = {
+  baidu: { fields: [{ id: "baiduAppId", label: "AppID", placeholder: "百度翻译开放平台 AppID" }, { id: "baiduAppKey", label: "AppKey", placeholder: "百度翻译开放平台密钥" }] },
+  yandex: { fields: [{ id: "yandexKey", label: "API Key", placeholder: "Yandex Translate API Key" }] },
+  deepl: { fields: [{ id: "deeplKey", label: "API Key", placeholder: "DeepL API Key" }] },
+  deepseek: { fields: [{ id: "deepseekKey", label: "API Key", placeholder: "DeepSeek API Key" }] },
+  doubao: { fields: [{ id: "doubaoKey", label: "API Key", placeholder: "豆包/火山引擎 API Key" }] },
+  kimi: { fields: [{ id: "kimiKey", label: "API Key", placeholder: "Moonshot AI API Key" }] },
+  openai: { fields: [{ id: "openaiKey", label: "API Key", placeholder: "OpenAI API Key" }] },
+  customai: {
+    fields: [
+      { id: "customaiApiUrl", label: "API 地址", placeholder: "如 https://api.siliconflow.cn/v1" },
+      { id: "customaiModel", label: "模型名称", placeholder: "如 deepseek-ai/DeepSeek-V3" },
+      { id: "customaiKey", label: "API Key", placeholder: "填写平台 API Key" },
+    ],
+  },
+};
+
+// 旧版兼容：将 KEY_PROVIDERS 转成 { fieldId: keyConfig } 的快速查找表
+const KEY_FIELD_MAP = {};
+for (const [provider, config] of Object.entries(KEY_PROVIDERS)) {
+  for (const field of config.fields) {
+    KEY_FIELD_MAP[field.id] = { provider, type: field.id === "baiduAppId" ? "appid" : field.id === "baiduAppKey" ? "appkey" : "key" };
+  }
+}
+
 const els = {
   bgImage: document.querySelector("#bgImage"),
   bgLayer: document.querySelector(".bg-layer"),
@@ -80,11 +130,6 @@ const els = {
   tutorialPage: document.querySelector("#tutorialPage"),
   hookEnabled: document.querySelector("#hookEnabled"),
   scanInterval: document.querySelector("#scanInterval"),
-  scanSelect: document.querySelector(".custom-select"),
-  scanSelectBtn: document.querySelector("#scanSelectBtn"),
-  scanSelectText: document.querySelector("#scanSelectText"),
-  scanSelectPanel: document.querySelector("#scanSelectPanel"),
-  scanSelectOptions: document.querySelectorAll("#scanSelectPanel button"),
   rawUrl: document.querySelector("#rawUrl"),
   translationBody: document.querySelector("#translationBody"),
   entryCount: document.querySelector("#entryCount"),
@@ -108,9 +153,14 @@ const els = {
   dialogTitle: document.querySelector("#dialogTitle"),
   dialogMessage: document.querySelector("#dialogMessage"),
   dialogCancelBtn: document.querySelector("#dialogCancelBtn"),
+  dialogSkipBtn: document.querySelector("#dialogSkipBtn"),
   dialogConfirmBtn: document.querySelector("#dialogConfirmBtn"),
   toast: document.querySelector("#toast"),
   toastText: document.querySelector("#toastText"),
+  apiKeysToggle: document.querySelector("#apiKeysToggle"),
+  apiKeysBody: document.querySelector("#apiKeysBody"),
+  apiKeyInline: document.querySelector("#apiKeyInline"),
+  apiKeyFields: document.querySelector("#apiKeyFields"),
 };
 
 function showToast(message) {
@@ -150,6 +200,7 @@ function showDialog({
     els.dialogMessage.textContent = message;
     els.dialogConfirmBtn.textContent = confirmText;
     els.dialogCancelBtn.textContent = cancelText;
+    els.dialogSkipBtn.hidden = true;
     els.dialogMask.classList.add("show");
     els.dialogMask.setAttribute("aria-hidden", "false");
 
@@ -179,26 +230,46 @@ function showDialog({
   });
 }
 
-function updateScanSelect(value = els.scanInterval.value) {
-  const option = [...els.scanInterval.options].find((item) => item.value === String(value));
-  const label = option?.textContent || "3 秒（推荐）";
+function showTranslateModeDialog() {
+  return new Promise((resolve) => {
+    els.dialogKicker.textContent = "自动翻译";
+    els.dialogTitle.textContent = "检测到已有中文翻译";
+    els.dialogMessage.textContent = "继续翻译时，你可以覆盖已填写的中文，也可以跳过已翻译内容，只翻译仍为空的词条。";
+    els.dialogCancelBtn.textContent = "取消";
+    els.dialogSkipBtn.textContent = "跳过已翻译";
+    els.dialogConfirmBtn.textContent = "覆盖全部";
+    els.dialogSkipBtn.hidden = false;
+    els.dialogMask.classList.add("show");
+    els.dialogMask.setAttribute("aria-hidden", "false");
 
-  els.scanInterval.value = String(value);
-  els.scanSelectText.textContent = label;
-  els.scanSelectOptions.forEach((button) => {
-    button.classList.toggle("selected", button.dataset.value === String(value));
+    const cleanup = (result) => {
+      els.dialogMask.classList.remove("show");
+      els.dialogMask.setAttribute("aria-hidden", "true");
+      els.dialogSkipBtn.hidden = true;
+      els.dialogConfirmBtn.removeEventListener("click", onOverwrite);
+      els.dialogSkipBtn.removeEventListener("click", onSkip);
+      els.dialogCancelBtn.removeEventListener("click", onCancel);
+      els.dialogMask.removeEventListener("click", onMask);
+      document.removeEventListener("keydown", onKeydown);
+      resolve(result);
+    };
+
+    const onOverwrite = () => cleanup("overwrite");
+    const onSkip = () => cleanup("skip");
+    const onCancel = () => cleanup("cancel");
+    const onMask = (event) => {
+      if (event.target === els.dialogMask) cleanup("cancel");
+    };
+    const onKeydown = (event) => {
+      if (event.key === "Escape") cleanup("cancel");
+    };
+
+    els.dialogConfirmBtn.addEventListener("click", onOverwrite);
+    els.dialogSkipBtn.addEventListener("click", onSkip);
+    els.dialogCancelBtn.addEventListener("click", onCancel);
+    els.dialogMask.addEventListener("click", onMask);
+    document.addEventListener("keydown", onKeydown);
   });
-}
-
-function closeScanSelect() {
-  els.scanSelect.classList.remove("open");
-  els.scanSelectBtn.setAttribute("aria-expanded", "false");
-}
-
-function toggleScanSelect() {
-  const willOpen = !els.scanSelect.classList.contains("open");
-  els.scanSelect.classList.toggle("open", willOpen);
-  els.scanSelectBtn.setAttribute("aria-expanded", String(willOpen));
 }
 
 function updateTranslatorProvider(provider) {
@@ -231,6 +302,57 @@ function switchPage(page) {
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
+function getApiKeys() {
+  return { ...(state.apiKeys || {}) };
+}
+
+function syncApiKeysFromDom() {
+  if (els.apiKeyFields) {
+    els.apiKeyFields.querySelectorAll("input").forEach((input) => {
+      state.apiKeys[input.id] = input.value?.trim() || "";
+    });
+  }
+}
+
+function renderApiKeyFields(provider) {
+  if (!els.apiKeyFields) return;
+
+  // 渲染前先保存当前已填写的 Key 到 state
+  syncApiKeysFromDom();
+
+  const config = KEY_PROVIDERS[provider];
+
+  if (!config) {
+    els.apiKeyInline.classList.add("hidden");
+    return;
+  }
+
+  els.apiKeyInline.classList.remove("hidden");
+  els.apiKeyFields.innerHTML = "";
+
+  config.fields.forEach((field) => {
+    const label = document.createElement("label");
+    label.className = "field";
+    const span = document.createElement("span");
+    span.textContent = field.label;
+    const input = document.createElement("input");
+    input.id = field.id;
+    input.type = "text";
+    input.placeholder = field.placeholder;
+    input.value = state.apiKeys[field.id] || "";
+    input.autocomplete = "off";
+    input.addEventListener("input", () => {
+      syncApiKeysFromDom();
+    });
+    input.addEventListener("change", () => {
+      syncApiKeysFromDom();
+      saveState();
+    });
+    label.append(span, input);
+    els.apiKeyFields.append(label);
+  });
+}
+
 function saveState() {
   const payload = {
     hookEnabled: els.hookEnabled.checked,
@@ -238,6 +360,7 @@ function saveState() {
     rawUrl: els.rawUrl.value.trim(),
     translations: state.translations,
     translatorProvider: state.translatorProvider,
+    apiKeys: getApiKeys(),
   };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
 }
@@ -256,7 +379,11 @@ function loadState() {
     els.hookEnabled.checked = currentRaw ? (payload.hookEnabled ?? false) : false;
     els.scanInterval.value = String(payload.scanInterval || "3");
     els.rawUrl.value = payload.rawUrl || "";
-    updateTranslatorProvider(payload.translatorProvider || "youdao");
+    updateTranslatorProvider(payload.translatorProvider || "auto");
+
+    if (payload.apiKeys && typeof payload.apiKeys === "object") {
+      state.apiKeys = payload.apiKeys;
+    }
 
     if (Array.isArray(payload.translations)) {
       state.translations = payload.translations
@@ -264,6 +391,7 @@ function loadState() {
         .map((item) => ({
           en: String(item.en || ""),
           cn: String(item.cn || ""),
+          selected: item.selected !== false,
         }));
 
       const isOldExampleOnly =
@@ -274,7 +402,7 @@ function loadState() {
         state.translations[1].cn === "设置";
 
       if (isOldExampleOnly) {
-        state.translations = [{ en: "", cn: "" }];
+        state.translations = [{ en: "", cn: "", selected: true }];
         saveState();
       }
     }
@@ -288,11 +416,31 @@ function renderRows() {
   els.translationBody.innerHTML = "";
 
   if (state.translations.length === 0) {
-    state.translations.push({ en: "", cn: "" });
+    state.translations.push({ en: "", cn: "", selected: true });
   }
 
   state.translations.forEach((item, index) => {
     const tr = document.createElement("tr");
+
+    if (typeof item.selected !== "boolean") {
+      item.selected = true;
+    }
+
+    const selectTd = document.createElement("td");
+    selectTd.className = "select-cell";
+    const selectLabel = document.createElement("label");
+    selectLabel.className = "row-check";
+    selectLabel.title = "勾选后自动翻译会处理这一行";
+    const selectInput = document.createElement("input");
+    selectInput.type = "checkbox";
+    selectInput.checked = item.selected !== false;
+    selectInput.addEventListener("change", () => {
+      state.translations[index].selected = selectInput.checked;
+      saveState();
+    });
+    const selectUi = document.createElement("span");
+    selectLabel.append(selectInput, selectUi);
+    selectTd.append(selectLabel);
 
     const enTd = document.createElement("td");
     const enInput = document.createElement("input");
@@ -333,7 +481,7 @@ function renderRows() {
 
     actions.append(deleteBtn);
     actionTd.append(actions);
-    tr.append(enTd, cnTd, actionTd);
+    tr.append(selectTd, enTd, cnTd, actionTd);
     els.translationBody.append(tr);
   });
 
@@ -341,7 +489,7 @@ function renderRows() {
 }
 
 function addRow(en = "", cn = "") {
-  state.translations.push({ en, cn });
+  state.translations.push({ en, cn, selected: true });
   renderRows();
   saveState();
 }
@@ -374,8 +522,9 @@ function getRowsToTranslate() {
       index,
       en: item.en.trim(),
       cn: item.cn.trim(),
+      selected: item.selected !== false,
     }))
-    .filter((item) => item.en);
+    .filter((item) => item.en && item.selected);
 }
 
 function updateTranslateStatus(text, type = "") {
@@ -406,7 +555,82 @@ async function fetchWithTimeout(url, options = {}, timeout = 8000) {
   }
 }
 
-async function translateWithGoogle(text) {
+// 全局代理可用性缓存：null = 未检测，true = 可用，false = 不可用
+let proxyWorking = null;
+
+function isProxyAvailable() {
+  if (proxyWorking === false) return false;
+  return location.protocol === "http:" || location.protocol === "https:";
+}
+
+async function translateViaProxy(provider, text) {
+  if (proxyWorking === false) {
+    throw new Error("代理服务未部署");
+  }
+
+  let url = `/api/translate?provider=${encodeURIComponent(provider)}&text=${encodeURIComponent(text)}`;
+
+  // 如果接口需要 Key，从本地配置中获取并附加到请求
+  const keyConfig = KEY_PROVIDERS[provider];
+  if (keyConfig) {
+    const keys = getApiKeys();
+    if (provider === "baidu") {
+      const appid = keys["baiduAppId"];
+      const appkey = keys["baiduAppKey"];
+      if (appid && appkey) {
+        url += `&appid=${encodeURIComponent(appid)}&appkey=${encodeURIComponent(appkey)}`;
+      }
+    } else if (provider === "customai") {
+      const apiurl = keys["customaiApiUrl"];
+      const model = keys["customaiModel"];
+      const key = keys["customaiKey"];
+      if (apiurl && model && key) {
+        url += `&apiurl=${encodeURIComponent(apiurl)}&model=${encodeURIComponent(model)}&key=${encodeURIComponent(key)}`;
+      }
+    } else {
+      const field = keyConfig.fields?.[0];
+      if (field) {
+        const key = keys[field.id];
+        if (key) {
+          url += `&key=${encodeURIComponent(key)}`;
+        }
+      }
+    }
+  }
+
+  // AI 接口响应较慢，给更长的超时；免费接口给较短的超时
+  const timeout = ["deepseek", "doubao", "kimi", "openai", "customai"].includes(provider) ? 18000 : 10000;
+  const response = await fetchWithTimeout(url, { headers: { Accept: "application/json" } }, timeout);
+
+  if (!response.ok) {
+    if (response.status === 404) {
+      proxyWorking = false;
+      throw new Error("代理服务未部署（404），请将接口切换为「自动选择」或部署 Cloudflare Function");
+    }
+    let detail = "";
+    try {
+      const data = await response.json();
+      detail = data?.error || "";
+    } catch {}
+    throw new Error(`接口返回 ${response.status}${detail ? `：${detail}` : ""}`);
+  }
+
+  let data;
+  try {
+    data = await response.json();
+  } catch {
+    // 200 但返回 HTML，可能是代理返回了错误页面
+    proxyWorking = false;
+    throw new Error("代理服务返回了非 JSON 数据，请检查 Cloudflare Function 是否正确部署");
+  }
+
+  proxyWorking = true;
+  const translated = data?.translated?.trim();
+  if (!translated) throw new Error("接口没有返回有效翻译结果");
+  return { translated, provider: data.provider || provider };
+}
+
+async function translateWithGoogleDirect(text) {
   const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt=t&q=${encodeURIComponent(text)}`;
   const response = await fetchWithTimeout(url);
   if (!response.ok) throw new Error("谷歌翻译接口请求失败");
@@ -416,115 +640,234 @@ async function translateWithGoogle(text) {
   return translated;
 }
 
-async function translateWithYoudao(text) {
-  const url = `https://fanyi.youdao.com/translate?doctype=json&type=AUTO&i=${encodeURIComponent(text)}`;
-  const response = await fetchWithTimeout(url);
-  if (!response.ok) throw new Error("有道翻译接口请求失败");
-  const data = await response.json();
-  const translated = data?.translateResult?.flat?.()?.map((item) => item?.tgt || "").join("").trim();
-  if (!translated) throw new Error("有道翻译没有返回有效结果");
-  return translated;
-}
-
-async function translateWithBing(text) {
-  const response = await fetchWithTimeout("https://api-edge.cognitive.microsofttranslator.com/translate?api-version=3.0&from=en&to=zh-Hans", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify([{ Text: text }]),
-  });
-  if (!response.ok) throw new Error("必应翻译接口请求失败");
-  const data = await response.json();
-  const translated = data?.[0]?.translations?.[0]?.text?.trim();
-  if (!translated) throw new Error("必应翻译没有返回有效结果");
-  return translated;
-}
-
-async function translateWithFallback(text) {
+async function translateWithMyMemoryDirect(text) {
   const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|zh-CN`;
   const response = await fetchWithTimeout(url);
-  if (!response.ok) throw new Error("备用翻译接口请求失败");
+  if (!response.ok) throw new Error("MyMemory 翻译接口请求失败");
   const data = await response.json();
   const translated = data?.responseData?.translatedText?.trim();
   if (!translated || translated.toLowerCase() === text.toLowerCase()) {
-    throw new Error("备用翻译没有返回有效结果");
+    throw new Error("MyMemory 翻译没有返回有效结果");
   }
   return translated;
 }
 
+async function translateWithLingvaDirect(text) {
+  const url = `https://lingva.lunar.icu/api/v1/en/zh/${encodeURIComponent(text)}`;
+  const response = await fetchWithTimeout(url);
+  if (!response.ok) throw new Error("Lingva 翻译接口请求失败");
+  const data = await response.json();
+  const translated = data?.translation?.trim();
+  if (!translated || translated.toLowerCase() === text.toLowerCase()) {
+    throw new Error("Lingva 翻译没有返回有效结果");
+  }
+  return translated;
+}
+
+async function translateWithLibreDirect(text) {
+  const response = await fetchWithTimeout("https://libretranslate.de/translate", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({
+      q: text,
+      source: "en",
+      target: "zh",
+      format: "text",
+    }),
+  }, 12000);
+  if (!response.ok) throw new Error("LibreTranslate 翻译接口请求失败");
+  const data = await response.json();
+  const translated = data?.translatedText?.trim();
+  if (!translated || translated.toLowerCase() === text.toLowerCase()) {
+    throw new Error("LibreTranslate 翻译没有返回有效结果");
+  }
+  return translated;
+}
+
+async function translateDirect(provider, text) {
+  let translated;
+  if (provider === "google") translated = await translateWithGoogleDirect(text);
+  else if (provider === "mymemory") translated = await translateWithMyMemoryDirect(text);
+  else if (provider === "lingva") translated = await translateWithLingvaDirect(text);
+  else if (provider === "libre") translated = await translateWithLibreDirect(text);
+  else translated = await translateWithMyMemoryDirect(text);
+  return { translated, provider };
+}
+
+function getAvailableProviders() {
+  const keys = state.apiKeys || {};
+  const available = [];
+
+  // 支持直连的免费接口优先（速度快，不需要代理）
+  available.push("mymemory", "google", "lingva", "libre");
+
+  // 需要代理的免费接口
+  available.push("deeplx", "youdao", "bing");
+
+  // 已配置 Key 的 AI 接口（质量高，但需要代理）
+  for (const [provider, config] of Object.entries(KEY_PROVIDERS)) {
+    const allFilled = config.fields.every((f) => keys[f.id]);
+    if (allFilled) available.push(provider);
+  }
+
+  return available;
+}
+
+// 支持浏览器直连的免费接口
+const DIRECT_PROVIDERS = new Set(["google", "mymemory", "lingva", "libre"]);
+
 async function translateTextByProvider(text) {
   const localResult = translateWithLocalDictionary(text);
-  if (localResult) return localResult;
+  if (localResult) return { translated: localResult, provider: "local" };
 
-  const primaryTasks = {
-    youdao: translateWithYoudao,
-    bing: translateWithBing,
-    google: translateWithGoogle,
-  };
+  const provider = state.translatorProvider;
 
-  const primary = primaryTasks[state.translatorProvider] || translateWithYoudao;
+  if (provider === "auto") {
+    // 自动选择：优先走直连（免费接口），直连失败后尝试代理
+    const providers = getAvailableProviders();
 
-  try {
-    return await primary(text);
-  } catch {
-    return translateWithFallback(text);
+    // 先尝试支持直连的接口
+    for (const item of providers) {
+      if (DIRECT_PROVIDERS.has(item)) {
+        try {
+          return await translateDirect(item, text);
+        } catch (err) {
+          console.warn(`[translator] ${item} 直连失败：`, err);
+        }
+      }
+    }
+
+    // 直连全部失败后，尝试代理接口
+    if (isProxyAvailable()) {
+      for (const item of providers) {
+        if (!DIRECT_PROVIDERS.has(item)) {
+          try {
+            return await translateViaProxy(item, text);
+          } catch (err) {
+            console.warn(`[translator] ${item} 代理失败：`, err);
+          }
+        }
+      }
+    }
+
+    throw new Error("所有翻译接口都不可用");
+  } else {
+    // 指定接口：先尝试代理，失败后如果支持直连则再试直连，仍失败才报错
+    let lastError = null;
+    if (isProxyAvailable()) {
+      try {
+        return await translateViaProxy(provider, text);
+      } catch (err) {
+        lastError = err;
+        console.warn(`[translator] ${provider} 代理失败：`, err);
+      }
+    }
+    // 不存在代理或代理失败时，尝试直连（仅免费接口支持直连）
+    if (DIRECT_PROVIDERS.has(provider)) {
+      try {
+        return await translateDirect(provider, text);
+      } catch (err) {
+        lastError = err;
+      }
+    }
+    if (lastError) throw lastError;
+    throw new Error(`${TRANSLATOR_LABELS[provider] || provider} 不支持直连，需要部署 Cloudflare Function 代理。`);
   }
 }
 
 async function autoTranslateRows() {
   const rows = getRowsToTranslate();
   if (rows.length === 0) {
-    showToast("请先填写需要翻译的英文原文。");
+    showToast("请先填写英文原文，并勾选需要自动翻译的词条。");
     updateTranslateStatus("缺少英文", "error");
     return;
   }
 
   const hasExistingChinese = rows.some((row) => row.cn);
+  let rowsToTranslate = rows;
   if (hasExistingChinese) {
-    const confirmed = await showDialog({
-      kicker: "自动翻译",
-      title: "是否覆盖已有中文翻译？",
-      message: "检测到部分词条已经填写了中文。继续自动翻译会用接口返回结果覆盖这些中文内容。",
-      confirmText: "覆盖并翻译",
-      cancelText: "取消",
-    });
+    const mode = await showTranslateModeDialog();
 
-    if (!confirmed) return;
+    if (mode === "cancel") return;
+    if (mode === "skip") {
+      rowsToTranslate = rows.filter((row) => !row.cn);
+      if (rowsToTranslate.length === 0) {
+        updateTranslateStatus("无需翻译", "done");
+        showToast("勾选的词条都已经有中文翻译，没有需要补充翻译的内容。");
+        return;
+      }
+    }
   }
 
-  const providerLabel = {
-    youdao: "有道翻译",
-    bing: "必应翻译",
-    google: "谷歌翻译",
-  }[state.translatorProvider];
+  const providerLabel = TRANSLATOR_LABELS[state.translatorProvider] || "自动翻译";
+  const totalCount = rowsToTranslate.length;
+  // 免费接口并发 5-6 条，AI 接口并发 3 条（AI 响应慢，不宜并发太多）
+  const isAiProvider = ["deepseek", "doubao", "kimi", "openai", "customai"].includes(state.translatorProvider);
+  const concurrency = isAiProvider ? 3 : (state.translatorProvider === "auto" ? 5 : 4);
+  let nextIndex = 0;
 
   els.autoTranslateBtn.disabled = true;
   els.autoTranslateBtn.textContent = "翻译中...";
-  updateTranslateStatus("翻译中", "working");
-  showToast(`正在调用${providerLabel}，请稍等。`);
+  updateTranslateStatus(`翻译中 0/${totalCount}`, "working");
+  showToast(`正在调用${providerLabel}，将并发翻译 ${totalCount} 条。`);
 
   let successCount = 0;
   let failCount = 0;
+  let firstError = null;
+  const usedProviders = new Set();
+  let shouldStop = false;
+
   try {
-    for (const row of rows) {
-      try {
-        const translated = await translateTextByProvider(row.en);
-        state.translations[row.index].cn = translated;
-        successCount += 1;
-      } catch {
-        failCount += 1;
+    const translateWorker = async () => {
+      while (nextIndex < rowsToTranslate.length && !shouldStop) {
+        const row = rowsToTranslate[nextIndex];
+        nextIndex += 1;
+
+        try {
+          const result = await translateTextByProvider(row.en);
+          state.translations[row.index].cn = result.translated;
+          usedProviders.add(result.provider);
+          successCount += 1;
+        } catch (err) {
+          failCount += 1;
+          if (!firstError) firstError = err;
+          // 指定接口时，失败就停止所有 worker
+          if (state.translatorProvider !== "auto") {
+            shouldStop = true;
+          }
+        }
+
+        updateTranslateStatus(`翻译中 ${successCount + failCount}/${totalCount}`, "working");
       }
-      renderRows();
-      saveState();
-    }
+    };
+
+    const workerCount = Math.min(concurrency, rowsToTranslate.length);
+    await Promise.all(Array.from({ length: workerCount }, translateWorker));
+    renderRows();
+    saveState();
+
+    // 组装实际使用的接口名称
+    const actualProviderLabels = [...usedProviders].map((p) => TRANSLATOR_LABELS[p] || p);
+    const actualText = actualProviderLabels.length > 0
+      ? `（${actualProviderLabels.join("、")}）`
+      : "";
 
     if (successCount > 0) {
-      updateTranslateStatus(`完成 ${successCount} 条`, "done");
-      showToast(`${providerLabel}翻译完成，成功 ${successCount} 条${failCount ? `，失败 ${failCount} 条` : ""}。`);
+      updateTranslateStatus(`完成 ${successCount} 条 ${actualText}`, "done");
+      showToast(`${providerLabel}翻译完成，成功 ${successCount} 条${failCount ? `，失败 ${failCount} 条` : ""}。${actualText}`);
     } else {
       updateTranslateStatus("翻译失败", "error");
-      const extra = state.translatorProvider === "google" ? "谷歌翻译可能需要 VPN。" : "在线接口可能被跨域拦截。";
+      let extra = "";
+      if (state.translatorProvider === "google") {
+        extra = "谷歌翻译可能需要 VPN。";
+      } else if (firstError) {
+        extra = firstError.message;
+      } else {
+        extra = "所有在线接口暂时不可用，请稍后重试或手动填写。";
+      }
       showToast(`${providerLabel}翻译失败：${extra}`);
     }
   } finally {
@@ -816,17 +1159,18 @@ function normalizeImportedJson(data) {
   return data
     .map((item) => {
       if (Array.isArray(item)) {
-        return { en: String(item[0] || ""), cn: String(item[1] || "") };
+        return { en: String(item[0] || ""), cn: String(item[1] || ""), selected: true };
       }
 
       if (item && typeof item === "object") {
         return {
           en: String(item.en || item.english || item["英文原文"] || item["英文"] || ""),
           cn: String(item.cn || item.chinese || item["中文翻译"] || item["中文"] || ""),
+          selected: true,
         };
       }
 
-      return { en: "", cn: "" };
+      return { en: "", cn: "", selected: true };
     })
     .filter((item) => item.en.trim() && item.cn.trim());
 }
@@ -861,24 +1205,13 @@ els.navLinks.forEach((link) => {
   link.addEventListener("click", () => switchPage(link.dataset.page));
 });
 
-els.scanSelectBtn.addEventListener("click", (event) => {
-  event.stopPropagation();
-  toggleScanSelect();
-});
-
-els.scanSelectOptions.forEach((button) => {
-  button.addEventListener("click", (event) => {
-    event.stopPropagation();
-    updateScanSelect(button.dataset.value);
-    saveState();
-    closeScanSelect();
-  });
-});
-
 els.translatorProvider.addEventListener("change", () => {
   updateTranslatorProvider(els.translatorProvider.value);
+  renderApiKeyFields(els.translatorProvider.value);
   saveState();
 });
+
+// 初始化时渲染 API Key 输入框
 
 els.addRowBtn.addEventListener("click", () => addRow());
 
@@ -892,7 +1225,7 @@ els.clearRowsBtn.addEventListener("click", async () => {
   });
 
   if (!confirmed) return;
-  state.translations = [{ en: "", cn: "" }];
+  state.translations = [{ en: "", cn: "", selected: true }];
   renderRows();
   saveState();
   showToast("词条已清空。");
@@ -923,22 +1256,15 @@ els.copyExtractBtn.addEventListener("click", () => {
 
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
-    closeScanSelect();
-  }
-
-  if (event.key === "Escape") {
     closeMenu();
   }
 });
 
 document.addEventListener("click", (event) => {
-  if (!els.scanSelect.contains(event.target)) {
-    closeScanSelect();
-  }
 });
 
 loadState();
-updateScanSelect();
 updateTranslatorProvider(state.translatorProvider);
+renderApiKeyFields(state.translatorProvider);
 renderRows();
 loadRandomBackground();

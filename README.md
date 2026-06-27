@@ -75,17 +75,83 @@
 
 ## 部署
 
-这是一个纯静态网站，可以部署到任意静态网页平台，例如 GitHub Pages、Cloudflare Pages、Vercel、Netlify 或普通虚拟主机。
+### 方式一：纯静态部署（推荐，最简单）
+
+直接把 `index.html`、`style.css`、`script.js` 放到任意静态托管即可使用。支持 GitHub Pages、Cloudflare Pages（纯静态）、Vercel、Netlify 或普通虚拟主机。
 
 使用 GitHub Pages 时，可以按以下方式部署：
 
 1. 新建一个公开 GitHub 仓库。
 2. 上传 `index.html`、`style.css`、`script.js`、`README.md` 和 `LICENSE`。
-3. 进入仓库 `Settings`。
-4. 打开 `Pages`。
-5. Source 选择 `Deploy from a branch`。
-6. Branch 选择 `main`，目录选择 `/root`。
-7. 保存后等待 GitHub Pages 自动生成访问地址。
+3. 进入仓库 `Settings` → `Pages`。
+4. Source 选择 `Deploy from a branch`，Branch 选择 `main`，目录选择 `/root`。
+5. 保存后等待 GitHub Pages 自动生成访问地址。
+
+> 纯静态部署下，翻译接口中的**谷歌翻译**、**MyMemory**、**Lingva**、**LibreTranslate** 支持浏览器直连，可直接使用。其他接口（有道、必应、百度、DeepSeek、Kimi 等）需要下方的 Cloudflare Function 代理才能使用。
+
+### 方式二：Cloudflare Pages + Functions（支持全部翻译接口）
+
+如果需要使用**全部翻译接口**（包括有道、必应、百度、DeepSeek、Kimi、豆包、自定义 AI 等），需要部署 Cloudflare Pages Functions 代理。
+
+#### 步骤 1：准备文件
+
+确保项目根目录包含以下文件和文件夹：
+
+```text
+.
+├── index.html
+├── style.css
+├── script.js
+├── README.md
+├── LICENSE
+└── functions/
+    └── api/
+        └── translate.js
+```
+
+#### 步骤 2：通过 Wrangler CLI 部署
+
+1. 安装 Wrangler（Cloudflare 官方 CLI）：
+   ```bash
+   npm install -g wrangler
+   ```
+
+2. 登录 Cloudflare 账号：
+   ```bash
+   wrangler login
+   ```
+   这会打开浏览器让你授权登录。
+
+3. 进入项目目录，执行部署：
+   ```bash
+   wrangler pages deploy .
+   ```
+   按提示选择：
+   - 如果是新项目，输入项目名称（如 `roblox-localizer`）
+   - 选择生产分支（默认 `main`）
+
+4. 部署完成后，终端会输出访问地址，如 `https://roblox-localizer.pages.dev`。
+
+#### 步骤 3：验证代理是否生效
+
+打开部署后的地址，在浏览器控制台执行：
+```javascript
+fetch('/api/translate?provider=mymemory&text=hello').then(r => r.json()).then(console.log)
+```
+
+如果返回类似 `{provider: "mymemory", translated: "你好"}`，说明代理已正确部署。
+
+#### 方式 2B：通过 Cloudflare Dashboard 手动上传
+
+如果不方便用命令行，也可以直接上传：
+
+1. 登录 [Cloudflare Dashboard](https://dash.cloudflare.com/)。
+2. 左侧菜单进入 `Workers & Pages` → `Create application` → `Pages` → `Upload assets`。
+3. 拖拽或选择项目文件夹（包含 `index.html` 和 `functions/`）。
+4. Cloudflare 会自动识别 `functions/` 目录并部署 Functions。
+5. 部署完成后获得访问地址。
+
+> 注意：后续更新时，需要重新上传整个文件夹。
 
 ## 使用提醒
 

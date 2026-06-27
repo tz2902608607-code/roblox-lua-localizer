@@ -8,7 +8,7 @@
       content="Roblox 汉化脚本在线生成器，可根据英文原文与中文翻译生成 Roblox Lua 汉化脚本。"
     />
     <title>Roblox 汉化脚本在线生成器</title>
-    <link rel="stylesheet" href="./style.css?v=20260620-cf-fix" />
+    <link rel="stylesheet" href="./style.css?v=20260627-dropdown-v2" />
   </head>
   <body>
     <div class="bg-layer">
@@ -92,26 +92,13 @@
 
             <label class="field">
               <span>轮询扫描间隔（秒）</span>
-              <select id="scanInterval" class="native-select-hidden" aria-hidden="true" tabindex="-1">
+              <select id="scanInterval" class="scan-native-select" aria-label="轮询扫描间隔">
                 <option value="1">1 秒</option>
                 <option value="2">2 秒</option>
                 <option value="3" selected>3 秒（推荐）</option>
                 <option value="5">5 秒</option>
                 <option value="10">10 秒</option>
               </select>
-              <div class="custom-select" data-select="scanInterval">
-                <button id="scanSelectBtn" class="custom-select-btn" type="button" aria-expanded="false">
-                  <span id="scanSelectText">3 秒（推荐）</span>
-                  <i></i>
-                </button>
-                <div id="scanSelectPanel" class="custom-select-panel" role="listbox">
-                  <button type="button" data-value="1">1 秒</button>
-                  <button type="button" data-value="2">2 秒</button>
-                  <button type="button" data-value="3" class="selected">3 秒（推荐）</button>
-                  <button type="button" data-value="5">5 秒</button>
-                  <button type="button" data-value="10">10 秒</button>
-                </div>
-              </div>
             </label>
 
             <label class="field field-wide">
@@ -158,25 +145,44 @@
                 <strong class="translator-title">自动翻译 <small>Beta</small></strong>
                 <span id="translateStatus" class="translator-status">待翻译</span>
               </div>
-              <span>优先使用本地常用 UI 词典，再尝试在线接口。</span>
+              <span>优先使用本地常用 UI 词典，再按所选接口或自动兜底接口翻译。</span>
             </div>
             <div class="translator-actions" aria-label="选择翻译接口">
               <label class="translator-field">
                 <span>翻译接口</span>
                 <select id="translatorProvider" class="translator-native-select" aria-label="选择翻译接口">
-                  <option value="youdao" selected>有道翻译</option>
+                  <option value="auto" selected>自动选择（推荐）</option>
+                  <option value="mymemory">MyMemory 翻译</option>
+                  <option value="deeplx">DeepLX 翻译</option>
+                  <option value="libre">LibreTranslate 翻译</option>
+                  <option value="lingva">Lingva 翻译</option>
+                  <option value="youdao">有道翻译</option>
                   <option value="bing">必应翻译</option>
                   <option value="google">谷歌翻译（需要 VPN）</option>
+                  <option value="baidu">百度翻译（需 Key）</option>
+                  <option value="yandex">Yandex 翻译（需 Key）</option>
+                  <option value="deepl">DeepL 翻译（需 Key）</option>
+                  <option value="deepseek">DeepSeek AI 翻译（需 Key）</option>
+                  <option value="doubao">豆包 AI 翻译（需 Key）</option>
+                  <option value="kimi">Kimi AI 翻译（需 Key）</option>
+                  <option value="openai">ChatGPT AI 翻译（需 Key）</option>
+                  <option value="customai">自定义 AI（OpenAI 兼容）</option>
                 </select>
               </label>
               <button id="autoTranslateBtn" class="btn primary" type="button">自动翻译</button>
             </div>
           </div>
 
+          <div class="api-key-inline" id="apiKeyInline">
+            <div id="apiKeyFields"></div>
+            <small class="api-key-note">Key 仅保存在浏览器本地，不会上传到服务器。</small>
+          </div>
+
           <div class="table-wrap">
             <table>
               <thead>
                 <tr>
+                  <th>选择</th>
                   <th>英文原文</th>
                   <th>中文翻译</th>
                   <th>操作</th>
@@ -296,6 +302,7 @@
         <p id="dialogMessage">确定要继续吗？</p>
         <div class="dialog-actions">
           <button id="dialogCancelBtn" class="btn" type="button">取消</button>
+          <button id="dialogSkipBtn" class="btn" type="button" hidden>跳过已翻译</button>
           <button id="dialogConfirmBtn" class="btn primary" type="button">确认</button>
         </div>
       </section>
@@ -305,6 +312,6 @@
       <span class="toast-icon">i</span>
       <span id="toastText"></span>
     </div>
-    <script src="./script.js?v=20260620-cf-fix" data-cfasync="false"></script>
+    <script src="./script.js?v=20260627-dropdown-v2" data-cfasync="false"></script>
   </body>
 </html>
