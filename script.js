@@ -555,7 +555,7 @@ async function fetchWithTimeout(url, options = {}, timeout = 8000) {
   }
 }
 
-// 全局代理可用性缓存：null = 未检测，true = 可用，false = 不可用
+// 全局代理可用性缓存：null = 未检测，true = 可用，false = 不可用（仅 404 时标记）
 let proxyWorking = null;
 
 function isProxyAvailable() {
@@ -609,17 +609,16 @@ async function translateViaProxy(provider, text) {
   } catch {}
 
   if (!response.ok) {
+    // 只有 404 才标记代理未部署（永久失效），其他错误保留重试机会
     if (response.status === 404) {
       proxyWorking = false;
       throw new Error("代理服务未部署（404），请切换「自动选择」或检查 Function 部署");
     }
-    // 502/503/504 等通常是 Cloudflare 平台错误，Function 未正确部署
+    // 502/503/504 等通常是临时错误，不标记代理失效
     if (response.status >= 500) {
-      proxyWorking = false;
       let hint = "";
-      // 尝试从 HTML 中提取简单信息
       if (bodyText.includes("<") && bodyText.includes(">")) {
-        hint = "（Cloudflare 返回了错误页面，Function 可能未正确部署或已崩溃）";
+        hint = "（Cloudflare 返回了错误页面，Function 可能未正确部署或临时异常）";
       }
       throw new Error(`代理服务返回 ${response.status}${hint}`);
     }
@@ -636,7 +635,7 @@ async function translateViaProxy(provider, text) {
   try {
     data = JSON.parse(bodyText);
   } catch {
-    // 200 但返回 HTML，可能是代理返回了错误页面
+    // 200 但返回 HTML，标记代理不可用
     proxyWorking = false;
     throw new Error("代理服务返回了非 JSON 数据，请检查 Cloudflare Function 是否正确部署");
   }
