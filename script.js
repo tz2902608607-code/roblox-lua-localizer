@@ -602,14 +602,31 @@ async function translateViaProxy(provider, text) {
   const timeout = ["deepseek", "doubao", "kimi", "openai", "customai"].includes(provider) ? 18000 : 10000;
   const response = await fetchWithTimeout(url, { headers: { Accept: "application/json" } }, timeout);
 
+  // 读取响应体（无论成功或失败都要读）
+  let bodyText = "";
+  try {
+    bodyText = await response.text();
+  } catch {}
+
   if (!response.ok) {
     if (response.status === 404) {
       proxyWorking = false;
-      throw new Error("代理服务未部署（404），请将接口切换为「自动选择」或部署 Cloudflare Function");
+      throw new Error("代理服务未部署（404），请切换「自动选择」或检查 Function 部署");
     }
+    // 502/503/504 等通常是 Cloudflare 平台错误，Function 未正确部署
+    if (response.status >= 500) {
+      proxyWorking = false;
+      let hint = "";
+      // 尝试从 HTML 中提取简单信息
+      if (bodyText.includes("<") && bodyText.includes(">")) {
+        hint = "（Cloudflare 返回了错误页面，Function 可能未正确部署或已崩溃）";
+      }
+      throw new Error(`代理服务返回 ${response.status}${hint}`);
+    }
+    // 4xx 错误，尝试解析 JSON 提取 detail
     let detail = "";
     try {
-      const data = await response.json();
+      const data = JSON.parse(bodyText);
       detail = data?.error || "";
     } catch {}
     throw new Error(`接口返回 ${response.status}${detail ? `：${detail}` : ""}`);
@@ -617,7 +634,7 @@ async function translateViaProxy(provider, text) {
 
   let data;
   try {
-    data = await response.json();
+    data = JSON.parse(bodyText);
   } catch {
     // 200 但返回 HTML，可能是代理返回了错误页面
     proxyWorking = false;
@@ -626,7 +643,10 @@ async function translateViaProxy(provider, text) {
 
   proxyWorking = true;
   const translated = data?.translated?.trim();
-  if (!translated) throw new Error("接口没有返回有效翻译结果");
+  if (!translated) {
+    const serverError = data?.error || "";
+    throw new Error(serverError || "接口没有返回有效翻译结果");
+  }
   return { translated, provider: data.provider || provider };
 }
 
