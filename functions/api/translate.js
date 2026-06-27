@@ -136,13 +136,30 @@ async function translateYoudao(text) {
   const target = `https://fanyi.youdao.com/translate?doctype=json&type=AUTO&i=${encodeURIComponent(text)}`;
   const response = await fetch(target, {
     headers: {
+      Accept: "application/json, text/javascript, */*",
       "User-Agent":
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
       Referer: "https://fanyi.youdao.com/",
+      Origin: "https://fanyi.youdao.com",
     },
   });
-  if (!response.ok) throw new Error(`有道翻译接口返回 ${response.status}`);
-  const data = await response.json();
+
+  let bodyText = "";
+  try {
+    bodyText = await response.text();
+  } catch {}
+
+  if (!response.ok) {
+    throw new Error(`有道翻译接口返回 ${await getErrorDetail(response)}`);
+  }
+
+  let data;
+  try {
+    data = JSON.parse(bodyText);
+  } catch {
+    throw new Error(`有道翻译返回了非 JSON 数据（可能被反爬虫拦截），请尝试其他接口`);
+  }
+
   const translated = (data?.translateResult || [])
     .flat()
     .map((item) => item?.tgt || "")
@@ -153,6 +170,7 @@ async function translateYoudao(text) {
 }
 
 async function translateBing(text) {
+  // 必应翻译边缘端点已关闭无密钥公开访问
   const response = await fetch(
     "https://api-edge.cognitive.microsofttranslator.com/translate?api-version=3.0&from=en&to=zh-Hans",
     {
@@ -165,7 +183,12 @@ async function translateBing(text) {
       body: JSON.stringify([{ Text: text }]),
     },
   );
-  if (!response.ok) throw new Error(`必应翻译接口返回 ${response.status}`);
+  if (!response.ok) {
+    if (response.status === 401 || response.status === 403) {
+      throw new Error("必应翻译已关闭公开访问，需要 Microsoft Azure 订阅密钥，建议使用其他接口");
+    }
+    throw new Error(`必应翻译接口返回 ${await getErrorDetail(response)}`);
+  }
   const data = await response.json();
   const translated = data?.[0]?.translations?.[0]?.text?.trim();
   if (!translated) throw new Error("必应翻译没有返回有效结果");
