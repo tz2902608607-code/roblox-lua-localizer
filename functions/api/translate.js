@@ -111,6 +111,27 @@ function json(data, status = 200) {
   });
 }
 
+// 从 HTTP 错误响应中提取可读的错误信息
+async function getErrorDetail(response) {
+  const status = response.status;
+  try {
+    const data = await response.json();
+    // OpenAI 兼容格式：data.error.message
+    if (data?.error?.message) return `${status}：${data.error.message}`;
+    if (data?.error?.code) return `${status}：${data.error.code}`;
+    // Yandex 格式：data.code + data.message
+    if (data?.code && data?.message) return `${status}：${data.message}`;
+    if (data?.message) return `${status}：${data.message}`;
+    if (data?.error) return `${status}：${data.error}`;
+  } catch {
+    try {
+      const text = await response.text();
+      if (text) return `${status}：${text.slice(0, 200)}`;
+    } catch {}
+  }
+  return `${status}`;
+}
+
 async function translateYoudao(text) {
   const target = `https://fanyi.youdao.com/translate?doctype=json&type=AUTO&i=${encodeURIComponent(text)}`;
   const response = await fetch(target, {
@@ -246,7 +267,7 @@ async function translateBaidu(text, appid, appkey) {
   const sign = md5(`${appid}${text}${salt}${appkey}`);
   const target = `https://fanyi-api.baidu.com/api/trans/vip/translate?q=${encodeURIComponent(text)}&from=en&to=zh&appid=${appid}&salt=${salt}&sign=${sign}`;
   const response = await fetch(target);
-  if (!response.ok) throw new Error(`百度翻译接口返回 ${response.status}`);
+  if (!response.ok) throw new Error(`百度翻译接口返回 ${await getErrorDetail(response)}`);
   const data = await response.json();
   const translated = data?.trans_result?.[0]?.dst?.trim();
   if (!translated) throw new Error("百度翻译没有返回有效结果");
@@ -256,8 +277,12 @@ async function translateBaidu(text, appid, appkey) {
 async function translateYandex(text, key) {
   const target = `https://translate.yandex.net/api/v1.5/tr.json/translate?key=${encodeURIComponent(key)}&text=${encodeURIComponent(text)}&lang=en-zh`;
   const response = await fetch(target);
-  if (!response.ok) throw new Error(`Yandex 接口返回 ${response.status}`);
+  if (!response.ok) throw new Error(`Yandex 接口返回 ${await getErrorDetail(response)}`);
   const data = await response.json();
+  // Yandex 返回 200 但 code 不为 200 时表示业务错误
+  if (data?.code && data.code !== 200) {
+    throw new Error(`Yandex 接口返回 ${data.code}：${data.message || "未知错误"}`);
+  }
   const translated = data?.text?.[0]?.trim();
   if (!translated) throw new Error("Yandex 翻译没有返回有效结果");
   return translated;
@@ -276,7 +301,7 @@ async function translateDeepL(text, key) {
       target_lang: "ZH",
     }),
   });
-  if (!response.ok) throw new Error(`DeepL 接口返回 ${response.status}`);
+  if (!response.ok) throw new Error(`DeepL 接口返回 ${await getErrorDetail(response)}`);
   const data = await response.json();
   const translated = data?.translations?.[0]?.text?.trim();
   if (!translated) throw new Error("DeepL 翻译没有返回有效结果");
@@ -300,7 +325,7 @@ async function translateDeepSeek(text, key) {
       max_tokens: 256,
     }),
   });
-  if (!response.ok) throw new Error(`DeepSeek 接口返回 ${response.status}`);
+  if (!response.ok) throw new Error(`DeepSeek 接口返回 ${await getErrorDetail(response)}`);
   const data = await response.json();
   const translated = data?.choices?.[0]?.message?.content?.trim();
   if (!translated) throw new Error("DeepSeek 翻译没有返回有效结果");
@@ -324,7 +349,7 @@ async function translateDoubao(text, key) {
       max_tokens: 256,
     }),
   });
-  if (!response.ok) throw new Error(`豆包接口返回 ${response.status}`);
+  if (!response.ok) throw new Error(`豆包接口返回 ${await getErrorDetail(response)}`);
   const data = await response.json();
   const translated = data?.choices?.[0]?.message?.content?.trim();
   if (!translated) throw new Error("豆包翻译没有返回有效结果");
@@ -348,7 +373,7 @@ async function translateKimi(text, key) {
       max_tokens: 256,
     }),
   });
-  if (!response.ok) throw new Error(`Kimi 接口返回 ${response.status}`);
+  if (!response.ok) throw new Error(`Kimi 接口返回 ${await getErrorDetail(response)}`);
   const data = await response.json();
   const translated = data?.choices?.[0]?.message?.content?.trim();
   if (!translated) throw new Error("Kimi 翻译没有返回有效结果");
@@ -372,7 +397,7 @@ async function translateOpenAI(text, key) {
       max_tokens: 256,
     }),
   });
-  if (!response.ok) throw new Error(`OpenAI 接口返回 ${response.status}`);
+  if (!response.ok) throw new Error(`OpenAI 接口返回 ${await getErrorDetail(response)}`);
   const data = await response.json();
   const translated = data?.choices?.[0]?.message?.content?.trim();
   if (!translated) throw new Error("OpenAI 翻译没有返回有效结果");
@@ -380,7 +405,9 @@ async function translateOpenAI(text, key) {
 }
 
 async function translateCustomAI(text, key, apiurl, model) {
-  const response = await fetch(`${apiurl}/chat/completions`, {
+  // 规范化 URL：去掉尾部斜杠，避免双斜杠
+  const baseUrl = apiurl.replace(/\/$/, "");
+  const response = await fetch(`${baseUrl}/chat/completions`, {
     method: "POST",
     headers: {
       "Authorization": `Bearer ${key}`,
@@ -396,7 +423,7 @@ async function translateCustomAI(text, key, apiurl, model) {
       max_tokens: 256,
     }),
   });
-  if (!response.ok) throw new Error(`自定义 AI 接口返回 ${response.status}`);
+  if (!response.ok) throw new Error(`自定义 AI 接口返回 ${await getErrorDetail(response)}`);
   const data = await response.json();
   const translated = data?.choices?.[0]?.message?.content?.trim();
   if (!translated) throw new Error("自定义 AI 翻译没有返回有效结果");
