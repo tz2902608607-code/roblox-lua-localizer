@@ -808,6 +808,11 @@ async function translateTextByProvider(text) {
 }
 
 async function autoTranslateRows() {
+  if (!turnstileToken) {
+    showToast("请先等待人机验证完成（页面自动翻译按钮下方的小圆点变绿勾后重试）");
+    return;
+  }
+
   const rows = getRowsToTranslate();
   if (rows.length === 0) {
     showToast("请先填写英文原文，并勾选需要自动翻译的词条。");
