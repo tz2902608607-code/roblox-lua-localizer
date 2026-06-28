@@ -21,9 +21,34 @@ export async function onRequest(context) {
   const appkey = url.searchParams.get("appkey") || "";
   const apiurl = url.searchParams.get("apiurl") || "";
   const model = url.searchParams.get("model") || "";
+  const turnstileToken = url.searchParams.get("cf-turnstile-response") || "";
 
   if (!text.trim()) {
     return json({ error: "缺少 text 参数" }, 400);
+  }
+
+  // Turnstile 验证
+  const TURNSTILE_SECRET = context.env?.TURNSTILE_SECRET || "";
+  if (TURNSTILE_SECRET && turnstileToken) {
+    const verifyRes = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        secret: TURNSTILE_SECRET,
+        response: turnstileToken,
+        remoteip: request.headers.get("CF-Connecting-IP") || "",
+      }),
+    });
+    const verifyData = await verifyRes.json();
+    if (!verifyData.success) {
+      const isDuplicate = verifyData["error-codes"]?.includes("timeout-or-duplicate");
+      if (!isDuplicate) {
+        return json({ error: "Turnstile 验证失败", codes: verifyData["error-codes"] }, 403);
+      }
+      // timeout-or-duplicate 表示 token 之前已验证成功（并发请求场景），允许通过
+    }
+  } else if (TURNSTILE_SECRET && !turnstileToken) {
+    return json({ error: "请先完成人机验证" }, 403);
   }
 
   try {
