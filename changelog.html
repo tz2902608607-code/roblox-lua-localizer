@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>更新日志 - Roblox 汉化工具</title>
+    <link rel="stylesheet" href="./style.css?v=20260628-changelog" />
+    <style>
+      .changelog-page {
+        max-width: 720px;
+        margin: 0 auto;
+        padding: 100px 20px 60px;
+      }
+      .changelog-title {
+        font-size: clamp(1.6rem, 4vw, 2.2rem);
+        font-weight: 800;
+        text-align: center;
+        margin-bottom: 40px;
+        background: linear-gradient(90deg, var(--primary), var(--primary-2));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+      .version-card {
+        background: var(--glass-strong);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 22px 26px;
+        margin-bottom: 18px;
+        backdrop-filter: blur(16px);
+        transition: transform 0.24s var(--ease-smooth), box-shadow 0.24s var(--ease-smooth);
+      }
+      .version-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow);
+      }
+      .version-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+      .version-tag {
+        font-size: 0.95rem;
+        font-weight: 800;
+        color: var(--primary);
+        background: rgba(78, 203, 255, 0.12);
+        padding: 4px 12px;
+        border-radius: 10px;
+      }
+      .version-date {
+        font-size: 0.8rem;
+        color: var(--muted);
+      }
+      .version-card ul {
+        margin: 0;
+        padding-left: 18px;
+        color: var(--muted);
+        font-size: 0.92rem;
+        line-height: 1.7;
+      }
+      .version-card li {
+        margin-bottom: 4px;
+      }
+      .back-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--primary);
+        text-decoration: none;
+        font-weight: 700;
+        font-size: 0.9rem;
+        margin-bottom: 20px;
+        transition: opacity 0.2s;
+      }
+      .back-link:hover {
+        opacity: 0.8;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="bg-layer">
+      <img id="bgImage" alt="" />
+    </div>
+    <div class="bg-mask"></div>
+
+    <header class="topbar">
+      <a href="./index.html" class="back-link">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M19 12H5M12 19l-7-7 7-7"/>
+        </svg>
+        返回首页
+      </a>
+      <div class="brand">
+        <strong>Roblox 汉化工具</strong>
+        <small>更新日志</small>
+      </div>
+    </header>
+
+    <main class="changelog-page">
+      <h1 class="changelog-title">更新日志</h1>
+
+      <div class="version-card">
+        <div class="version-header">
+          <span class="version-tag">v2.0.0</span>
+          <span class="version-date">2026-06-27</span>
+        </div>
+        <ul>
+          <li>重构翻译架构，支持 Cloudflare Function 代理</li>
+          <li>新增 15+ 翻译接口（DeepSeek、Kimi、豆包、Yandex 等）</li>
+          <li>API Key 自动保存与恢复，切换接口不丢失</li>
+          <li>自动选择模式智能 fallback，指定接口失败明确报错</li>
+        </ul>
+      </div>
+
+      <div class="version-card">
+        <div class="version-header">
+          <span class="version-tag">v1.5.0</span>
+          <span class="version-date">2026-06-25</span>
+        </div>
+        <ul>
+          <li>新增 AI 翻译接口：DeepSeek、Kimi、豆包、OpenAI、CustomAI</li>
+          <li>新增传统翻译接口：Yandex、百度、DeepL</li>
+          <li>翻译接口可配置 API Key</li>
+        </ul>
+      </div>
+
+      <div class="version-card">
+        <div class="version-header">
+          <span class="version-tag">v1.4.0</span>
+          <span class="version-date">2026-06-20</span>
+        </div>
+        <ul>
+          <li>自动翻译支持并发请求，大幅提升速度</li>
+          <li>本地词典优先匹配，减少 API 调用</li>
+          <li>新增扫描间隔设置（1~10 秒）</li>
+        </ul>
+      </div>
+
+      <div class="version-card">
+        <div class="version-header">
+          <span class="version-tag">v1.3.0</span>
+          <span class="version-date">2026-06-15</span>
+        </div>
+        <ul>
+          <li>UI 全面升级：暗色玻璃态主题</li>
+          <li>新增自定义下拉选择器</li>
+          <li>翻译状态实时提示</li>
+        </ul>
+      </div>
+
+      <div class="version-card">
+        <div class="version-header">
+          <span class="version-tag">v1.2.0</span>
+          <span class="version-date">2026-06-10</span>
+        </div>
+        <ul>
+          <li>支持批量导入翻译文本</li>
+          <li>新增自动翻译功能</li>
+          <li>支持生成 Lua 汉化脚本</li>
+        </ul>
+      </div>
+    </main>
+
+    <script>
+      // 随机背景（与首页一致）
+      const images = [
+        "https://images.unsplash.com/photo-1534796636912-3b95b3ab5986?w=1920&q=80",
+        "https://images.unsplash.com/photo-1506318137071-a8bcbf6d9436?w=1920&q=80",
+        "https://images.unsplash.com/photo-1518066000714-58c45f1a2c0a?w=1920&q=80",
+      ];
+      document.getElementById("bgImage").src = images[Math.floor(Math.random() * images.length)];
+    </script>
+  </body>
+</html>

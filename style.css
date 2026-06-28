@@ -208,6 +208,23 @@ button,
   color: var(--primary-2);
 }
 
+.version-badge {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--primary);
+  background: rgba(78, 203, 255, 0.12);
+  padding: 2px 8px;
+  border-radius: 8px;
+  text-decoration: none;
+  margin-left: 4px;
+  transition: background 0.2s, transform 0.2s;
+}
+
+.version-badge:hover {
+  background: rgba(78, 203, 255, 0.22);
+  transform: translateY(-1px);
+}
+
 .sidebar {
   position: fixed;
   top: 0;
@@ -1517,7 +1534,8 @@ footer {
     font-size: 2rem;
   }
 
-  .brand small {
+  .brand small,
+  .version-badge {
     display: none;
   }
 
