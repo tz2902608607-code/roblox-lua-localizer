@@ -1,6 +1,11 @@
 const STORAGE_KEY = "roblox-localizer-v2";
 const OLD_STORAGE_KEY = "roblox-localizer-v1";
 
+let turnstileToken = "";
+window.onTurnstileSuccess = function (token) {
+  turnstileToken = token;
+};
+
 const state = {
   translations: [
     { en: "", cn: "" },
@@ -569,6 +574,11 @@ async function translateViaProxy(provider, text) {
   }
 
   let url = `/api/translate?provider=${encodeURIComponent(provider)}&text=${encodeURIComponent(text)}`;
+
+  // 附加 Turnstile token（如果已完成验证）
+  if (turnstileToken) {
+    url += `&cf-turnstile-response=${encodeURIComponent(turnstileToken)}`;
+  }
 
   // 如果接口需要 Key，从本地配置中获取并附加到请求
   const keyConfig = KEY_PROVIDERS[provider];
