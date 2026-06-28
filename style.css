@@ -827,10 +827,16 @@ textarea:focus {
 }
 
 .translator-actions {
-  display: grid;
-  grid-template-columns: minmax(190px, 1fr) auto;
-  gap: 10px;
-  align-items: end;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+}
+
+.turnstile-wrap {
+  display: flex;
+  justify-content: flex-start;
+  margin-top: 10px;
 }
 
 .translator-field {
