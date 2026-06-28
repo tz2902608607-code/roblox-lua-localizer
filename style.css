@@ -837,9 +837,9 @@ textarea:focus {
   display: flex;
   justify-content: flex-start;
   margin-top: 6px;
-  transform: scale(0.6);
+  transform: scale(0.75);
   transform-origin: left top;
-  height: 40px;
+  height: 52px;
 }
 
 .translator-field {
