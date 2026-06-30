@@ -117,6 +117,62 @@ export async function onRequest(context) {
   }
 }
 
+// API Key 测试接口：/api/test-key?provider=xxx&key=xxx&appid=xxx&appkey=xxx&apiurl=xxx&model=xxx
+export async function onRequestTestKey(context) {
+  const { request } = context;
+  const url = new URL(request.url);
+  const provider = (url.searchParams.get("provider") || "").toLowerCase();
+  const key = url.searchParams.get("key") || "";
+  const appid = url.searchParams.get("appid") || "";
+  const appkey = url.searchParams.get("appkey") || "";
+  const apiurl = url.searchParams.get("apiurl") || "";
+  const model = url.searchParams.get("model") || "";
+
+  if (!provider) {
+    return json({ error: "缺少 provider 参数" }, 400);
+  }
+
+  const testText = "Hello";
+  const startTime = Date.now();
+
+  try {
+    let translated = "";
+    if (provider === "baidu") {
+      if (!appid || !appkey) return json({ success: false, error: "缺少 AppID 或 AppKey" });
+      translated = await translateBaidu(testText, appid, appkey);
+    } else if (provider === "yandex") {
+      if (!key) return json({ success: false, error: "缺少 API Key" });
+      translated = await translateYandex(testText, key);
+    } else if (provider === "deepl") {
+      if (!key) return json({ success: false, error: "缺少 API Key" });
+      translated = await translateDeepL(testText, key);
+    } else if (provider === "deepseek") {
+      if (!key) return json({ success: false, error: "缺少 API Key" });
+      translated = await translateDeepSeek(testText, key);
+    } else if (provider === "doubao") {
+      if (!key) return json({ success: false, error: "缺少 API Key" });
+      translated = await translateDoubao(testText, key);
+    } else if (provider === "kimi") {
+      if (!key) return json({ success: false, error: "缺少 API Key" });
+      translated = await translateKimi(testText, key);
+    } else if (provider === "openai") {
+      if (!key) return json({ success: false, error: "缺少 API Key" });
+      translated = await translateOpenAI(testText, key);
+    } else if (provider === "customai") {
+      if (!key || !apiurl || !model) return json({ success: false, error: "缺少 Key、API URL 或模型" });
+      translated = await translateCustomAI(testText, key, apiurl, model);
+    } else {
+      return json({ success: false, error: `未知 provider: ${provider}` }, 400);
+    }
+
+    const elapsed = Date.now() - startTime;
+    return json({ success: true, translated, elapsed: `${elapsed}ms`, provider });
+  } catch (err) {
+    const elapsed = Date.now() - startTime;
+    return json({ success: false, error: err?.message || "测试失败", elapsed: `${elapsed}ms`, provider });
+  }
+}
+
 function corsHeaders() {
   return {
     "Access-Control-Allow-Origin": "*",
@@ -158,62 +214,170 @@ async function getErrorDetail(response) {
 }
 
 async function translateYoudao(text) {
+  // 有道网页版翻译（2025+ 新接口，三步流程）
+  const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
+
+  // 第一步：从有道翻译页面 JS 中提取产品密钥
+  const pageRes = await fetch("https://fanyi.youdao.com/", {
+    headers: { "User-Agent": UA, Accept: "text/html" },
+  });
+  const pageHtml = await pageRes.text();
+
+  // 从页面中提取 app.js 的 URL
+  const jsUrlMatch = pageHtml.match(/\/webtranslate\/([^"]+\.js)/);
+  if (!jsUrlMatch) {
+    // 降级到旧接口
+    return await translateYoudaoFallback(text);
+  }
+
+  const jsRes = await fetch(`https://shared.ydstatic.com/dict/translation-website/${jsUrlMatch[1]}`, {
+    headers: { "User-Agent": UA },
+  });
+  const jsText = await jsRes.text();
+
+  // 提取 constSign
+  const signMatch = jsText.match(/constSign\s*=\s*"([^"]+)"/);
+  if (!signMatch) {
+    return await translateYoudaoFallback(text);
+  }
+  const constSign = signMatch[1];
+  const keyid = "webfanyi-key-getter-2025";
+  const mysticTime = Date.now();
+
+  // 第二步：获取 AES 密钥
+  const signStr = `client=fanyideskweb&mysticTime=${mysticTime}&product=webfanyi&key=${constSign}`;
+  const signHash = md5(signStr);
+
+  const keyRes = await fetch(
+    `https://dict.youdao.com/webtranslate/key?keyid=${keyid}&sign=${signHash}&client=fanyideskweb&product=webfanyi&mysticTime=${mysticTime}`,
+    { headers: { "User-Agent": UA, Referer: "https://fanyi.youdao.com/" } }
+  );
+  const keyData = await keyRes.json();
+  if (!keyData?.data) {
+    return await translateYoudaoFallback(text);
+  }
+
+  const { aesKey, aesIv, secretKey } = keyData.data;
+
+  // 第三步：发送翻译请求
+  const reqSignStr = `client=fanyideskweb&mysticTime=${Date.now()}&product=webfanyi&key=${secretKey}`;
+  const reqSign = md5(reqSignStr);
+
+  const translateRes = await fetch("https://dict.youdao.com/webtranslate", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      "User-Agent": UA,
+      Referer: "https://fanyi.youdao.com/",
+      Origin: "https://fanyi.youdao.com",
+    },
+    body: new URLSearchParams({
+      i: text,
+      from: "auto",
+      to: "zh-Hans",
+      keyid,
+      sign: reqSign,
+      client: "fanyideskweb",
+      product: "webfanyi",
+      mysticTime: String(Date.now()),
+      pointparams: "client=fanyideskweb&screen=1920x1080&os=Windows&deviceid=abc",
+      appVersion: "5.0.0",
+    }).toString(),
+  });
+
+  const encryptedBody = await translateRes.text();
+
+  // AES-CBC 解密
+  try {
+    const encKey = await crypto.subtle.importKey("raw", hexToBytes(md5(aesKey)), { name: "AES-CBC" }, false, ["decrypt"]);
+    const encIv = hexToBytes(md5(aesIv));
+    const decrypted = await crypto.subtle.decrypt({ name: "AES-CBC", iv: encIv }, encKey, base64ToBytes(encryptedBody));
+    const decoded = new TextDecoder().decode(decrypted);
+    const parsed = JSON.parse(decoded);
+
+    // 解析翻译结果
+    const translated = parsed?.translateResult?.map((item) =>
+      item?.map((seg) => seg?.tgt || "").join("")
+    ).join("").trim();
+
+    if (!translated) throw new Error("有道翻译没有返回有效结果");
+    return translated;
+  } catch (e) {
+    // 解密失败，降级到旧接口
+    return await translateYoudaoFallback(text);
+  }
+}
+
+// 有道翻译降级方案（旧接口）
+async function translateYoudaoFallback(text) {
   const target = `https://fanyi.youdao.com/translate?doctype=json&type=AUTO&i=${encodeURIComponent(text)}`;
   const response = await fetch(target, {
     headers: {
       Accept: "application/json, text/javascript, */*",
-      "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
       Referer: "https://fanyi.youdao.com/",
       Origin: "https://fanyi.youdao.com",
     },
   });
-
   let bodyText = "";
-  try {
-    bodyText = await response.text();
-  } catch {}
-
-  if (!response.ok) {
-    throw new Error(`有道翻译接口返回 ${await getErrorDetail(response)}`);
-  }
-
+  try { bodyText = await response.text(); } catch {}
+  if (!response.ok) throw new Error(`有道翻译接口返回 ${await getErrorDetail(response)}`);
   let data;
-  try {
-    data = JSON.parse(bodyText);
-  } catch {
-    throw new Error(`有道翻译返回了非 JSON 数据（可能被反爬虫拦截），请尝试其他接口`);
+  try { data = JSON.parse(bodyText); } catch {
+    throw new Error("有道翻译返回了非 JSON 数据（可能被反爬虫拦截），请尝试其他接口");
   }
-
-  const translated = (data?.translateResult || [])
-    .flat()
-    .map((item) => item?.tgt || "")
-    .join("")
-    .trim();
+  const translated = (data?.translateResult || []).flat().map((item) => item?.tgt || "").join("").trim();
   if (!translated) throw new Error("有道翻译没有返回有效结果");
   return translated;
 }
 
 async function translateBing(text) {
-  // 必应翻译边缘端点已关闭无密钥公开访问
-  const response = await fetch(
-    "https://api-edge.cognitive.microsofttranslator.com/translate?api-version=3.0&from=en&to=zh-Hans",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
-      },
-      body: JSON.stringify([{ Text: text }]),
+  // 必应网页版翻译（通过 bing.com/ttranslatev3 接口）
+  const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
+
+  // 第一步：获取 IG、token、key
+  const pageRes = await fetch("https://www.bing.com/translator", {
+    headers: { "User-Agent": UA, Accept: "text/html" },
+  });
+  const pageHtml = await pageRes.text();
+
+  const igMatch = pageHtml.match(/IG:"([a-f0-9]+)"/);
+  const tokenMatch = pageHtml.match(/params_AbusePreventionHelper\s*=\s*\[\s*\d+,\s*"([^"]+)"/);
+  const keyMatch = pageHtml.match(/key:\s*"([^"]+)"/);
+
+  if (!igMatch || !tokenMatch) {
+    throw new Error("必应翻译网页接口已变更，无法获取翻译 token");
+  }
+
+  const ig = igMatch[1];
+  const token = tokenMatch[1];
+  const key = keyMatch?.[1] || "";
+
+  // 第二步：发送翻译请求
+  const response = await fetch(`https://www.bing.com/ttranslatev3?isVertical=1&IG=${ig}&IID=translator.5027`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      Referer: "https://www.bing.com/translator",
+      "User-Agent": UA,
     },
-  );
+    body: new URLSearchParams({
+      fromLang: "en",
+      text,
+      to: "zh-Hans",
+      token,
+      key,
+      tryFetchingGenderDebiasedTranslations: "true",
+    }).toString(),
+  });
+
   if (!response.ok) {
     if (response.status === 401 || response.status === 403) {
-      throw new Error("必应翻译已关闭公开访问，需要 Microsoft Azure 订阅密钥，建议使用其他接口");
+      throw new Error("必应翻译网页接口暂时不可用，建议使用其他接口");
     }
     throw new Error(`必应翻译接口返回 ${await getErrorDetail(response)}`);
   }
+
   const data = await response.json();
   const translated = data?.[0]?.translations?.[0]?.text?.trim();
   if (!translated) throw new Error("必应翻译没有返回有效结果");
@@ -519,4 +683,23 @@ function md5(inputString) {
     a = ad(a, olda); b = ad(b, oldb); c = ad(c, oldc); d = ad(d, oldd);
   }
   return rh(a) + rh(b) + rh(c) + rh(d);
+}
+
+// 十六进制字符串转 Uint8Array
+function hexToBytes(hex) {
+  const bytes = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < hex.length; i += 2) {
+    bytes[i / 2] = parseInt(hex.substr(i, 2), 16);
+  }
+  return bytes;
+}
+
+// Base64 字符串转 Uint8Array
+function base64ToBytes(base64) {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
 }
