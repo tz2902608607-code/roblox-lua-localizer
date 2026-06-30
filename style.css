@@ -842,6 +842,29 @@ textarea:focus {
   height: 52px;
 }
 
+.test-key-btn {
+  margin-top: 8px;
+  padding: 6px 16px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--primary);
+  background: rgba(78, 203, 255, 0.1);
+  border: 1px solid rgba(78, 203, 255, 0.3);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.15s;
+}
+
+.test-key-btn:hover:not(:disabled) {
+  background: rgba(78, 203, 255, 0.2);
+  transform: translateY(-1px);
+}
+
+.test-key-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .translator-field {
   display: grid;
   gap: 6px;

@@ -356,6 +356,53 @@ function renderApiKeyFields(provider) {
     label.append(span, input);
     els.apiKeyFields.append(label);
   });
+
+  // 添加测试按钮
+  const testBtn = document.createElement("button");
+  testBtn.type = "button";
+  testBtn.className = "btn test-key-btn";
+  testBtn.textContent = "测试 Key";
+  testBtn.addEventListener("click", async () => {
+    syncApiKeysFromDom();
+    testBtn.disabled = true;
+    testBtn.textContent = "测试中...";
+
+    try {
+      const keys = state.apiKeys;
+      const params = new URLSearchParams({ provider });
+      if (provider === "baidu") {
+        params.set("appid", keys["baiduAppId"] || "");
+        params.set("appkey", keys["baiduAppKey"] || "");
+      } else if (provider === "customai") {
+        params.set("apiurl", keys["customaiApiUrl"] || "");
+        params.set("model", keys["customaiModel"] || "");
+        params.set("key", keys["customaiKey"] || "");
+      } else {
+        const field = config.fields.find((f) => f.id.includes("Key"));
+        if (field) params.set("key", keys[field.id] || "");
+      }
+
+      if (turnstileToken) {
+        params.set("cf-turnstile-response", turnstileToken);
+      }
+
+      const res = await fetchWithTimeout(`/api/test-key?${params.toString()}`, {}, 15000);
+      const data = await res.json();
+
+      if (data.success) {
+        showToast(`${TRANSLATOR_LABELS[provider] || provider} Key 测试成功：翻译「${data.translated}」，耗时 ${data.elapsed}`);
+      } else {
+        showToast(`Key 测试失败：${data.error}`);
+      }
+    } catch (err) {
+      showToast(`Key 测试失败：${err.message}`);
+    } finally {
+      testBtn.disabled = false;
+      testBtn.textContent = "测试 Key";
+    }
+  });
+
+  els.apiKeyFields.append(testBtn);
 }
 
 function saveState() {
