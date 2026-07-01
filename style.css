@@ -855,6 +855,16 @@ textarea:focus {
   transform: scale(0.75);
   transform-origin: left top;
   height: 52px;
+  opacity: 1;
+  transition: opacity 0.5s ease, height 0.5s ease, margin 0.5s ease;
+  overflow: hidden;
+}
+
+.turnstile-wrap.is-verified {
+  opacity: 0;
+  height: 0;
+  margin-top: 0;
+  pointer-events: none;
 }
 
 .test-key-btn {
@@ -878,6 +888,92 @@ textarea:focus {
 .test-key-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.key-field-row .key-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.key-field-row .key-input-wrap input {
+  flex: 1;
+}
+
+.key-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+  transition: background 0.2s, color 0.2s;
+}
+
+.key-status[data-status="pending"] {
+  background: rgba(160, 160, 160, 0.2);
+  border: 2px solid rgba(160, 160, 160, 0.4);
+  color: rgba(160, 160, 160, 0.6);
+}
+
+.key-status[data-status="pending"]::after {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(160, 160, 160, 0.6);
+}
+
+.key-status[data-status="valid"] {
+  background: rgba(34, 197, 94, 0.15);
+  border: 2px solid rgba(34, 197, 94, 0.5);
+  color: #22c55e;
+}
+
+.key-status[data-status="valid"]::after {
+  content: "✓";
+}
+
+.key-status[data-status="invalid"] {
+  background: rgba(239, 68, 68, 0.15);
+  border: 2px solid rgba(239, 68, 68, 0.5);
+  color: #ef4444;
+}
+
+.key-status[data-status="invalid"]::after {
+  content: "✕";
+}
+
+.ai-prompt-wrap {
+  margin-top: 10px;
+}
+
+.ai-prompt-wrap textarea {
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--fg);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  resize: vertical;
+  min-height: 50px;
+  transition: border-color 0.2s;
+}
+
+.ai-prompt-wrap textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.ai-prompt-wrap textarea::placeholder {
+  color: var(--muted);
+  opacity: 0.5;
 }
 
 .translator-field {

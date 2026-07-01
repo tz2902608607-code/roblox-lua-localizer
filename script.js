@@ -44,6 +44,17 @@ async function initSiteStats() {
 let turnstileToken = "";
 window.onTurnstileSuccess = function (token) {
   turnstileToken = token;
+  // 验证通过后 3 秒自动隐藏
+  setTimeout(() => {
+    const wrap = document.getElementById("turnstileWrap");
+    if (wrap) wrap.classList.add("is-verified");
+  }, 3000);
+};
+
+window.onTurnstileExpired = function () {
+  turnstileToken = "";
+  const wrap = document.getElementById("turnstileWrap");
+  if (wrap) wrap.classList.remove("is-verified");
 };
 
 const state = {
@@ -52,6 +63,7 @@ const state = {
   ],
   translatorProvider: "auto",
   apiKeys: {},
+  aiPrompt: "",
 };
 
 const LOCAL_TRANSLATION_DICTIONARY = {
@@ -123,10 +135,13 @@ const TRANSLATOR_LABELS = {
   lingva: "Lingva 翻译",
   reverso: "Reverso 翻译",
   sogou: "搜狗翻译",
+  caiyun: "彩云小译",
   youdao: "有道翻译",
   bing: "必应翻译",
   google: "谷歌翻译",
-  baidu: "百度翻译",
+  baidu: "百度翻译（机翻）",
+  baidullm: "百度大模型翻译",
+  baiduai: "百度AI 翻译",
   yandex: "Yandex 翻译",
   deepl: "DeepL 翻译",
   deepseek: "DeepSeek AI 翻译",
@@ -134,15 +149,22 @@ const TRANSLATOR_LABELS = {
   kimi: "Kimi AI 翻译",
   openai: "ChatGPT AI 翻译",
   gemini: "Gemini AI 翻译",
+  qwen: "通义千问 AI 翻译",
+  glm: "智谱AI GLM 翻译",
+  spark: "讯飞星火翻译",
+  yi: "零一万物 Yi 翻译",
+  hunyuan: "腾讯混元翻译",
   customai: "自定义 AI",
 };
 
 // 自动选择时的接口尝试顺序（免费接口优先，AI接口需要Key放后面）
-const AUTO_TRANSLATOR_ORDER = ["mymemory", "deeplx", "lingva", "libre", "reverso", "sogou", "google", "youdao", "bing"];
+const AUTO_TRANSLATOR_ORDER = ["mymemory", "deeplx", "lingva", "libre", "reverso", "sogou", "caiyun", "google", "youdao", "bing"];
 
 // 需要 API Key 的接口配置
 const KEY_PROVIDERS = {
   baidu: { fields: [{ id: "baiduAppId", label: "AppID", placeholder: "百度翻译开放平台 AppID" }, { id: "baiduAppKey", label: "AppKey", placeholder: "百度翻译开放平台密钥" }] },
+  baidullm: { fields: [{ id: "baiduAppId", label: "AppID", placeholder: "百度翻译开放平台 AppID" }, { id: "baiduAppKey", label: "AppKey", placeholder: "百度翻译开放平台密钥" }], note: "与百度翻译共用同一个 AppID 和 AppKey" },
+  baiduai: { fields: [{ id: "baiduAiApiKey", label: "API Key", placeholder: "千帆平台 API Key" }, { id: "baiduAiSecretKey", label: "Secret Key", placeholder: "千帆平台 Secret Key" }] },
   yandex: { fields: [{ id: "yandexKey", label: "API Key", placeholder: "Yandex Translate API Key" }] },
   deepl: { fields: [{ id: "deeplKey", label: "API Key", placeholder: "DeepL API Key" }] },
   deepseek: { fields: [{ id: "deepseekKey", label: "API Key", placeholder: "DeepSeek API Key" }] },
@@ -150,6 +172,11 @@ const KEY_PROVIDERS = {
   kimi: { fields: [{ id: "kimiKey", label: "API Key", placeholder: "Moonshot AI API Key" }] },
   openai: { fields: [{ id: "openaiKey", label: "API Key", placeholder: "OpenAI API Key" }] },
   gemini: { fields: [{ id: "geminiKey", label: "API Key", placeholder: "Google Gemini API Key" }] },
+  qwen: { fields: [{ id: "qwenKey", label: "API Key", placeholder: "阿里百炼 DashScope API Key" }] },
+  glm: { fields: [{ id: "glmKey", label: "API Key", placeholder: "智谱AI API Key" }] },
+  spark: { fields: [{ id: "sparkKey", label: "API Key", placeholder: "讯飞开放平台 APIPassword" }] },
+  yi: { fields: [{ id: "yiKey", label: "API Key", placeholder: "零一万物 API Key" }] },
+  hunyuan: { fields: [{ id: "hunyuanKey", label: "API Key", placeholder: "腾讯 TokenHub API Key" }] },
   customai: {
     fields: [
       { id: "customaiApiUrl", label: "API 地址", placeholder: "如 https://api.siliconflow.cn/v1" },
@@ -210,6 +237,8 @@ const els = {
   apiKeysBody: document.querySelector("#apiKeysBody"),
   apiKeyInline: document.querySelector("#apiKeyInline"),
   apiKeyFields: document.querySelector("#apiKeyFields"),
+  aiPromptWrap: document.querySelector("#aiPromptWrap"),
+  aiPromptInput: document.querySelector("#aiPromptInput"),
 };
 
 function showToast(message) {
@@ -373,31 +402,56 @@ function renderApiKeyFields(provider) {
 
   if (!config) {
     els.apiKeyInline.classList.add("hidden");
+    if (els.aiPromptWrap) els.aiPromptWrap.style.display = "none";
     return;
   }
 
   els.apiKeyInline.classList.remove("hidden");
+
+  // AI 提示词区域：仅在 AI 接口时显示
+  const isAi = ["deepseek", "doubao", "kimi", "openai", "gemini", "baiduai", "qwen", "glm", "spark", "yi", "hunyuan", "customai"].includes(provider);
+  if (els.aiPromptWrap) {
+    els.aiPromptWrap.style.display = isAi ? "" : "none";
+    if (isAi && els.aiPromptInput) {
+      els.aiPromptInput.value = state.aiPrompt || "";
+    }
+  }
   els.apiKeyFields.innerHTML = "";
+
+  function setKeyStatus(fieldId, status) {
+    const indicator = document.querySelector(`.key-status[data-field="${fieldId}"]`);
+    if (indicator) indicator.dataset.status = status;
+  }
 
   config.fields.forEach((field) => {
     const label = document.createElement("label");
-    label.className = "field";
+    label.className = "field key-field-row";
     const span = document.createElement("span");
     span.textContent = field.label;
+    const inputWrap = document.createElement("div");
+    inputWrap.className = "key-input-wrap";
     const input = document.createElement("input");
     input.id = field.id;
     input.type = "text";
     input.placeholder = field.placeholder;
     input.value = state.apiKeys[field.id] || "";
     input.autocomplete = "off";
+    const statusIndicator = document.createElement("span");
+    statusIndicator.className = "key-status";
+    statusIndicator.dataset.field = field.id;
+    statusIndicator.dataset.status = "pending";
+    statusIndicator.title = "待检测";
+
     input.addEventListener("input", () => {
       syncApiKeysFromDom();
+      setKeyStatus(field.id, "pending");
     });
     input.addEventListener("change", () => {
       syncApiKeysFromDom();
       saveState();
     });
-    label.append(span, input);
+    inputWrap.append(input, statusIndicator);
+    label.append(span, inputWrap);
     els.apiKeyFields.append(label);
   });
 
@@ -421,6 +475,12 @@ function renderApiKeyFields(provider) {
         params.set("apiurl", keys["customaiApiUrl"] || "");
         params.set("model", keys["customaiModel"] || "");
         params.set("key", keys["customaiKey"] || "");
+      } else if (provider === "baiduai") {
+        params.set("appid", keys["baiduAiApiKey"] || "");
+        params.set("appkey", keys["baiduAiSecretKey"] || "");
+      } else if (provider === "baidullm") {
+        params.set("appid", keys["baiduAppId"] || "");
+        params.set("appkey", keys["baiduAppKey"] || "");
       } else {
         const field = config.fields.find((f) => f.id.includes("Key"));
         if (field) params.set("key", keys[field.id] || "");
@@ -434,11 +494,20 @@ function renderApiKeyFields(provider) {
       const data = await res.json();
 
       if (data.success) {
+        config.fields.forEach((f) => {
+          setKeyStatus(f.id, "valid");
+        });
         showToast(`${TRANSLATOR_LABELS[provider] || provider} Key 测试成功：翻译「${data.translated}」，耗时 ${data.elapsed}`);
       } else {
+        config.fields.forEach((f) => {
+          setKeyStatus(f.id, "invalid");
+        });
         showToast(`Key 测试失败：${data.error}`);
       }
     } catch (err) {
+      config.fields.forEach((f) => {
+        setKeyStatus(f.id, "invalid");
+      });
       showToast(`Key 测试失败：${err.message}`);
     } finally {
       testBtn.disabled = false;
@@ -457,6 +526,7 @@ function saveState() {
     translations: state.translations,
     translatorProvider: state.translatorProvider,
     apiKeys: getApiKeys(),
+    aiPrompt: state.aiPrompt,
   };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
 }
@@ -479,6 +549,10 @@ function loadState() {
 
     if (payload.apiKeys && typeof payload.apiKeys === "object") {
       state.apiKeys = payload.apiKeys;
+    }
+
+    if (typeof payload.aiPrompt === "string") {
+      state.aiPrompt = payload.aiPrompt;
     }
 
     if (Array.isArray(payload.translations)) {
@@ -681,6 +755,18 @@ async function translateViaProxy(provider, text) {
       if (appid && appkey) {
         url += `&appid=${encodeURIComponent(appid)}&appkey=${encodeURIComponent(appkey)}`;
       }
+    } else if (provider === "baidullm") {
+      const appid = keys["baiduAppId"];
+      const appkey = keys["baiduAppKey"];
+      if (appid && appkey) {
+        url += `&appid=${encodeURIComponent(appid)}&appkey=${encodeURIComponent(appkey)}`;
+      }
+    } else if (provider === "baiduai") {
+      const apiKey = keys["baiduAiApiKey"];
+      const secretKey = keys["baiduAiSecretKey"];
+      if (apiKey && secretKey) {
+        url += `&appid=${encodeURIComponent(apiKey)}&appkey=${encodeURIComponent(secretKey)}`;
+      }
     } else if (provider === "customai") {
       const apiurl = keys["customaiApiUrl"];
       const model = keys["customaiModel"];
@@ -700,7 +786,14 @@ async function translateViaProxy(provider, text) {
   }
 
   // AI 接口响应较慢，给更长的超时；免费接口给较短的超时
-  const timeout = ["deepseek", "doubao", "kimi", "openai", "gemini", "customai"].includes(provider) ? 18000 : 10000;
+  const isAiProvider = ["deepseek", "doubao", "kimi", "openai", "gemini", "baiduai", "qwen", "glm", "spark", "yi", "hunyuan", "customai"].includes(provider);
+  const timeout = isAiProvider ? 18000 : 10000;
+
+  // AI 接口附加自定义提示词
+  const customPrompt = state.aiPrompt || "";
+  if (isAiProvider && customPrompt) {
+    url += `&prompt=${encodeURIComponent(customPrompt)}`;
+  }
   const response = await fetchWithTimeout(url, { headers: { Accept: "application/json" } }, timeout);
 
   // 读取响应体（无论成功或失败都要读）
@@ -825,7 +918,7 @@ function getAvailableProviders() {
   available.push("mymemory", "google", "lingva", "libre");
 
   // 需要代理的免费接口
-  available.push("deeplx", "reverso", "sogou", "youdao", "bing");
+  available.push("deeplx", "reverso", "sogou", "caiyun", "youdao", "bing");
 
   // 已配置 Key 的 AI 接口（质量高，但需要代理）
   for (const [provider, config] of Object.entries(KEY_PROVIDERS)) {
@@ -930,7 +1023,7 @@ async function autoTranslateRows() {
   const providerLabel = TRANSLATOR_LABELS[state.translatorProvider] || "自动翻译";
   const totalCount = rowsToTranslate.length;
   // 免费接口并发 5-6 条，AI 接口并发 3 条（AI 响应慢，不宜并发太多）
-  const isAiProvider = ["deepseek", "doubao", "kimi", "openai", "gemini", "customai"].includes(state.translatorProvider);
+  const isAiProvider = ["deepseek", "doubao", "kimi", "openai", "gemini", "baiduai", "qwen", "glm", "spark", "yi", "hunyuan", "customai"].includes(state.translatorProvider);
   const concurrency = isAiProvider ? 3 : (state.translatorProvider === "auto" ? 5 : 4);
   let nextIndex = 0;
 
@@ -1390,6 +1483,15 @@ document.addEventListener("click", (event) => {
 
 loadState();
 initSiteStats();
+
+// AI 提示词输入框事件
+if (els.aiPromptInput) {
+  els.aiPromptInput.value = state.aiPrompt || "";
+  els.aiPromptInput.addEventListener("input", () => {
+    state.aiPrompt = els.aiPromptInput.value.trim();
+    saveState();
+  });
+}
 updateTranslatorProvider(state.translatorProvider);
 renderApiKeyFields(state.translatorProvider);
 renderRows();

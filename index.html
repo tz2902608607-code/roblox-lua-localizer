@@ -26,7 +26,7 @@
       <div class="brand">
         <strong>Roblox 汉化工具</strong>
         <small>正式版</small>
-        <a href="./changelog.html" class="version-badge" title="查看更新日志">v2.2.0</a>
+        <a href="./changelog.html" class="version-badge" title="查看更新日志">v2.8.0</a>
         <div class="site-stats" id="siteStats">
           <span id="statsOnline" title="当前在线">-</span>
           <span class="stats-sep">|</span>
@@ -166,10 +166,13 @@
                   <option value="lingva">Lingva 翻译</option>
                   <option value="reverso">Reverso 翻译</option>
                   <option value="sogou">搜狗翻译</option>
+                  <option value="caiyun">彩云小译</option>
                   <option value="youdao">有道翻译</option>
                   <option value="bing">必应翻译</option>
                   <option value="google">谷歌翻译（需 VPN）</option>
-                  <option value="baidu">百度翻译（需 Key）</option>
+                  <option value="baidu">百度翻译（机翻，需 Key）</option>
+                  <option value="baidullm">百度大模型翻译（需 Key）</option>
+                  <option value="baiduai">百度AI 翻译（文心一言，需 Key）</option>
                   <option value="yandex">Yandex 翻译（需 Key）</option>
                   <option value="deepl">DeepL 翻译（需 Key）</option>
                   <option value="deepseek">DeepSeek AI 翻译（需 Key）</option>
@@ -177,19 +180,31 @@
                   <option value="kimi">Kimi AI 翻译（需 Key）</option>
                   <option value="openai">ChatGPT AI 翻译（需 Key）</option>
                   <option value="gemini">Gemini AI 翻译（需 Key）</option>
+                  <option value="qwen">通义千问 AI 翻译（需 Key）</option>
+                  <option value="glm">智谱AI GLM 翻译（需 Key）</option>
+                  <option value="spark">讯飞星火翻译（需 Key）</option>
+                  <option value="yi">零一万物 Yi 翻译（需 Key）</option>
+                  <option value="hunyuan">腾讯混元翻译（需 Key）</option>
                   <option value="customai">自定义 AI（OpenAI 兼容）</option>
                 </select>
               </label>
               <button id="autoTranslateBtn" class="btn primary" type="button">自动翻译</button>
             </div>
-            <div class="turnstile-wrap">
-              <div class="cf-turnstile" data-sitekey="0x4AAAAAADsQ_Ua9B8m-S1Sn" data-callback="onTurnstileSuccess" data-size="normal" data-theme="dark"></div>
+            <div class="turnstile-wrap" id="turnstileWrap">
+              <div class="cf-turnstile" data-sitekey="0x4AAAAAADsQ_Ua9B8m-S1Sn" data-callback="onTurnstileSuccess" data-expired-callback="onTurnstileExpired" data-size="normal" data-theme="dark"></div>
             </div>
           </div>
 
           <div class="api-key-inline" id="apiKeyInline">
             <div id="apiKeyFields"></div>
             <small class="api-key-note">Key 仅保存在浏览器本地，不会上传到服务器。</small>
+            <div class="ai-prompt-wrap" id="aiPromptWrap" style="display:none;">
+              <label class="field">
+                <span>AI 提示词</span>
+                <textarea id="aiPromptInput" rows="2" placeholder="留空使用默认提示词。可自定义翻译风格，如：&#10;你是一个游戏翻译专家，请将以下Roblox游戏文本翻译成中文玩家习惯用语，只返回翻译结果。"></textarea>
+              </label>
+              <small class="api-key-note">提示词仅对 AI 翻译接口生效（DeepSeek、豆包、Kimi、Gemini 等）。</small>
+            </div>
           </div>
 
           <div class="table-wrap">
