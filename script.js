@@ -47,14 +47,25 @@ window.onTurnstileSuccess = function (token) {
   // 验证通过后 3 秒自动隐藏
   setTimeout(() => {
     const wrap = document.getElementById("turnstileWrap");
-    if (wrap) wrap.classList.add("is-verified");
+    if (wrap) {
+      wrap.style.opacity = "0";
+      setTimeout(() => {
+        wrap.style.display = "none";
+      }, 500);
+    }
   }, 3000);
 };
 
 window.onTurnstileExpired = function () {
   turnstileToken = "";
   const wrap = document.getElementById("turnstileWrap");
-  if (wrap) wrap.classList.remove("is-verified");
+  if (wrap) {
+    wrap.style.display = "";
+    // 触发重排后恢复透明度
+    requestAnimationFrame(() => {
+      wrap.style.opacity = "1";
+    });
+  }
 };
 
 const state = {
