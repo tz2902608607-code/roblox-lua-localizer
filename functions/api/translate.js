@@ -1,5 +1,5 @@
 // Cloudflare Pages Function：把翻译接口请求转发到第三方，绕过浏览器跨域限制。
-// 路由：/api/translate?provider=youdao|bing|google|mymemory|libre|lingva|deeplx|baidu|yandex|deepl|deepseek|doubao|kimi|openai|customai&text=xxx
+// 路由：/api/translate?provider=youdao|bing|google|mymemory|libre|lingva|deeplx|reverso|apertium|sogou|baidu|yandex|deepl|deepseek|doubao|kimi|openai|gemini|customai&text=xxx
 // 对于需要 API Key 的接口，通过 &key=xxx 或 &appid=xxx&appkey=xxx 传入
 // 自定义 AI 通过 &key=xxx&apiurl=xxx&model=xxx 传入
 
@@ -67,6 +67,12 @@ export async function onRequest(context) {
       translated = await translateLingva(text);
     } else if (provider === "deeplx") {
       translated = await translateDeepLX(text);
+    } else if (provider === "reverso") {
+      translated = await translateReverso(text);
+    } else if (provider === "apertium") {
+      translated = await translateApertium(text);
+    } else if (provider === "sogou") {
+      translated = await translateSogou(text);
     } else if (provider === "baidu") {
       if (!appid || !appkey) {
         return json({ error: "百度翻译需要 appid 和 appkey 参数" }, 400);
@@ -371,6 +377,84 @@ export async function translateDeepLX(text) {
   const translated = data?.data || data?.translation?.trim();
   if (!translated || translated.toLowerCase() === text.toLowerCase()) {
     throw new Error("DeepLX 没有返回有效结果");
+  }
+  return translated;
+}
+
+export async function translateReverso(text) {
+  const response = await fetch("https://api.reverso.net/translate/v1/translation", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+      Referer: "https://www.reverso.net/",
+    },
+    body: JSON.stringify({
+      input: text,
+      from: "eng",
+      to: "chi",
+      format: "text",
+      options: {
+        origin: "translation",
+        sentenceSplitter: false,
+        contextResults: true,
+        languageDetection: true,
+      },
+    }),
+  });
+  if (!response.ok) throw new Error(`Reverso 接口返回 ${response.status}`);
+  const data = await response.json();
+  const translated = data?.translation?.[0]?.trim();
+  if (!translated || translated.toLowerCase() === text.toLowerCase()) {
+    throw new Error("Reverso 没有返回有效结果");
+  }
+  return translated;
+}
+
+export async function translateApertium(text) {
+  const response = await fetch(
+    `https://apertium.org/apy/translate?langpair=en|zh&q=${encodeURIComponent(text)}`,
+    {
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+      },
+    }
+  );
+  if (!response.ok) throw new Error(`Apertium 接口返回 ${response.status}`);
+  const data = await response.json();
+  const translated = data?.responseData?.translatedText?.trim();
+  if (!translated || translated.toLowerCase() === text.toLowerCase()) {
+    throw new Error("Apertium 没有返回有效结果");
+  }
+  return translated;
+}
+
+export async function translateSogou(text) {
+  const response = await fetch("https://fanyi.sogou.com/api/transpc/text/result", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+      Referer: "https://fanyi.sogou.com/",
+    },
+    body: JSON.stringify({
+      from: "en",
+      to: "zh-CHS",
+      text: text,
+      client: "pc",
+      fr: "browser_pc",
+      needQc: 1,
+      s: "auto",
+    }),
+  });
+  if (!response.ok) throw new Error(`搜狗翻译接口返回 ${response.status}`);
+  const data = await response.json();
+  const translated = data?.data?.translate?.dit?.trim();
+  if (!translated || translated.toLowerCase() === text.toLowerCase()) {
+    throw new Error("搜狗翻译没有返回有效结果");
   }
   return translated;
 }
