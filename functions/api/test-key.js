@@ -2,6 +2,7 @@
 import {
   json,
   translateBaidu,
+  translateBaiduLLM,
   translateYandex,
   translateDeepL,
   translateDeepSeek,
@@ -10,6 +11,8 @@ import {
   translateOpenAI,
   translateCustomAI,
   translateGemini,
+  translateBaiduAI,
+  translateOpenAICompat,
 } from "./translate.js";
 
 export async function onRequest(context) {
@@ -34,6 +37,9 @@ export async function onRequest(context) {
     if (provider === "baidu") {
       if (!appid || !appkey) return json({ success: false, error: "缺少 AppID 或 AppKey" });
       translated = await translateBaidu(testText, appid, appkey);
+    } else if (provider === "baidullm") {
+      if (!appid || !appkey) return json({ success: false, error: "缺少 AppID 或 AppKey" });
+      translated = await translateBaiduLLM(testText, appid, appkey);
     } else if (provider === "yandex") {
       if (!key) return json({ success: false, error: "缺少 API Key" });
       translated = await translateYandex(testText, key);
@@ -58,6 +64,24 @@ export async function onRequest(context) {
     } else if (provider === "gemini") {
       if (!key) return json({ success: false, error: "缺少 API Key" });
       translated = await translateGemini(testText, key);
+    } else if (provider === "baiduai") {
+      if (!appid || !appkey) return json({ success: false, error: "缺少 API Key 或 Secret Key" });
+      translated = await translateBaiduAI(testText, appid, appkey);
+    } else if (provider === "qwen") {
+      if (!key) return json({ success: false, error: "缺少 API Key" });
+      translated = await translateOpenAICompat(testText, key, "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions", "qwen-turbo");
+    } else if (provider === "glm") {
+      if (!key) return json({ success: false, error: "缺少 API Key" });
+      translated = await translateOpenAICompat(testText, key, "https://open.bigmodel.cn/api/paas/v4/chat/completions", "glm-4.7-flash");
+    } else if (provider === "spark") {
+      if (!key) return json({ success: false, error: "缺少 API Key" });
+      translated = await translateOpenAICompat(testText, key, "https://spark-api-open.xf-yun.com/v1/chat/completions", "lite");
+    } else if (provider === "yi") {
+      if (!key) return json({ success: false, error: "缺少 API Key" });
+      translated = await translateOpenAICompat(testText, key, "https://api.lingyiwanwu.com/v1/chat/completions", "yi-lightning");
+    } else if (provider === "hunyuan") {
+      if (!key) return json({ success: false, error: "缺少 API Key" });
+      translated = await translateOpenAICompat(testText, key, "https://tokenhub.tencentmaas.com/v1/chat/completions", "hunyuan-turbo");
     } else {
       return json({ success: false, error: `未知 provider: ${provider}` }, 400);
     }

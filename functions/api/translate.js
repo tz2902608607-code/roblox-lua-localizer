@@ -21,6 +21,7 @@ export async function onRequest(context) {
   const appkey = url.searchParams.get("appkey") || "";
   const apiurl = url.searchParams.get("apiurl") || "";
   const model = url.searchParams.get("model") || "";
+  const prompt = url.searchParams.get("prompt") || "";
   const turnstileToken = url.searchParams.get("cf-turnstile-response") || "";
 
   if (!text.trim()) {
@@ -71,11 +72,18 @@ export async function onRequest(context) {
       translated = await translateReverso(text);
     } else if (provider === "sogou") {
       translated = await translateSogou(text);
+    } else if (provider === "caiyun") {
+      translated = await translateCaiyun(text);
     } else if (provider === "baidu") {
       if (!appid || !appkey) {
-        return json({ error: "百度翻译需要 appid 和 appkey 参数" }, 400);
+        return json({ error: "百度翻译需要 AppID 和 AppKey" }, 400);
       }
       translated = await translateBaidu(text, appid, appkey);
+    } else if (provider === "baidullm") {
+      if (!appid || !appkey) {
+        return json({ error: "百度大模型翻译需要 AppID 和 AppKey" }, 400);
+      }
+      translated = await translateBaiduLLM(text, appid, appkey);
     } else if (provider === "yandex") {
       if (!key) {
         return json({ error: "Yandex 翻译需要 key 参数" }, 400);
@@ -90,32 +98,52 @@ export async function onRequest(context) {
       if (!key) {
         return json({ error: "DeepSeek 翻译需要 key 参数" }, 400);
       }
-      translated = await translateDeepSeek(text, key);
+      translated = await translateDeepSeek(text, key, prompt);
     } else if (provider === "doubao") {
       if (!key) {
         return json({ error: "豆包翻译需要 key 参数" }, 400);
       }
-      translated = await translateDoubao(text, key);
+      translated = await translateDoubao(text, key, prompt);
     } else if (provider === "kimi") {
       if (!key) {
         return json({ error: "Kimi 翻译需要 key 参数" }, 400);
       }
-      translated = await translateKimi(text, key);
+      translated = await translateKimi(text, key, prompt);
     } else if (provider === "openai") {
       if (!key) {
         return json({ error: "ChatGPT 翻译需要 key 参数" }, 400);
       }
-      translated = await translateOpenAI(text, key);
+      translated = await translateOpenAI(text, key, prompt);
     } else if (provider === "customai") {
       if (!key || !apiurl || !model) {
         return json({ error: "自定义 AI 需要 key、apiurl 和 model 参数" }, 400);
       }
-      translated = await translateCustomAI(text, key, apiurl, model);
+      translated = await translateCustomAI(text, key, apiurl, model, prompt);
     } else if (provider === "gemini") {
       if (!key) {
         return json({ error: "Gemini 翻译需要 key 参数" }, 400);
       }
-      translated = await translateGemini(text, key);
+      translated = await translateGemini(text, key, prompt);
+    } else if (provider === "baiduai") {
+      if (!appid || !appkey) {
+        return json({ error: "百度AI翻译需要 API Key 和 Secret Key" }, 400);
+      }
+      translated = await translateBaiduAI(text, appid, appkey, prompt);
+    } else if (provider === "qwen") {
+      if (!key) return json({ error: "通义千问翻译需要 API Key" }, 400);
+      translated = await translateOpenAICompat(text, key, "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions", "qwen-turbo", prompt);
+    } else if (provider === "glm") {
+      if (!key) return json({ error: "智谱AI翻译需要 API Key" }, 400);
+      translated = await translateOpenAICompat(text, key, "https://open.bigmodel.cn/api/paas/v4/chat/completions", "glm-4.7-flash", prompt);
+    } else if (provider === "spark") {
+      if (!key) return json({ error: "讯飞星火翻译需要 API Key" }, 400);
+      translated = await translateOpenAICompat(text, key, "https://spark-api-open.xf-yun.com/v1/chat/completions", "lite", prompt);
+    } else if (provider === "yi") {
+      if (!key) return json({ error: "零一万物翻译需要 API Key" }, 400);
+      translated = await translateOpenAICompat(text, key, "https://api.lingyiwanwu.com/v1/chat/completions", "yi-lightning", prompt);
+    } else if (provider === "hunyuan") {
+      if (!key) return json({ error: "腾讯混元翻译需要 API Key" }, 400);
+      translated = await translateOpenAICompat(text, key, "https://tokenhub.tencentmaas.com/v1/chat/completions", "hunyuan-turbo", prompt);
     } else {
       return json({ error: `未知 provider: ${provider}` }, 400);
     }
@@ -486,6 +514,31 @@ export async function translateSogou(text) {
   return translated;
 }
 
+export async function translateCaiyun(text) {
+  const response = await fetch("https://api.interpreter.caiyunai.com/v1/translator", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+      "X-Authorization": "token 3975l6lr5pcbvidl6jl2",
+    },
+    body: JSON.stringify({
+      source: [text],
+      trans_type: "en2zh",
+      request_id: Date.now().toString(),
+      detect: true,
+    }),
+  });
+  if (!response.ok) throw new Error(`彩云小译接口返回 ${response.status}`);
+  const data = await response.json();
+  const translated = data?.target?.[0]?.trim();
+  if (!translated || translated.toLowerCase() === text.toLowerCase()) {
+    throw new Error("彩云小译没有返回有效结果");
+  }
+  return translated;
+}
+
 export async function translateBaidu(text, appid, appkey) {
   const salt = Date.now();
   const sign = md5(`${appid}${text}${salt}${appkey}`);
@@ -532,7 +585,36 @@ export async function translateDeepL(text, key) {
   return translated;
 }
 
-export async function translateDeepSeek(text, key) {
+const DEFAULT_SYSTEM_PROMPT = "你是一个翻译助手。请将以下英文翻译成中文，只返回翻译结果，不要解释。";
+
+// 通用 OpenAI 兼容接口翻译（通义千问、智谱AI、讯飞星火、零一万物、腾讯混元等）
+export async function translateOpenAICompat(text, apiKey, endpoint, model, prompt) {
+  const systemContent = prompt || DEFAULT_SYSTEM_PROMPT;
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model,
+      messages: [
+        { role: "system", content: systemContent },
+        { role: "user", content: text },
+      ],
+      temperature: 0.3,
+      max_tokens: 256,
+    }),
+  });
+  if (!response.ok) throw new Error(`接口返回 ${await getErrorDetail(response)}`);
+  const data = await response.json();
+  const translated = data?.choices?.[0]?.message?.content?.trim();
+  if (!translated) throw new Error("没有返回有效翻译结果");
+  return translated;
+}
+
+export async function translateDeepSeek(text, key, prompt) {
+  const systemContent = prompt || DEFAULT_SYSTEM_PROMPT;
   const response = await fetch("https://api.deepseek.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -542,7 +624,7 @@ export async function translateDeepSeek(text, key) {
     body: JSON.stringify({
       model: "deepseek-chat",
       messages: [
-        { role: "system", content: "You are a translator. Translate the following English text to Chinese. Only return the translation, no explanations." },
+        { role: "system", content: systemContent },
         { role: "user", content: text },
       ],
       temperature: 0.3,
@@ -556,7 +638,8 @@ export async function translateDeepSeek(text, key) {
   return translated;
 }
 
-export async function translateDoubao(text, key) {
+export async function translateDoubao(text, key, prompt) {
+  const systemContent = prompt || DEFAULT_SYSTEM_PROMPT;
   const response = await fetch("https://ark.cn-beijing.volces.com/api/v3/chat/completions", {
     method: "POST",
     headers: {
@@ -566,21 +649,22 @@ export async function translateDoubao(text, key) {
     body: JSON.stringify({
       model: "doubao-pro-32k",
       messages: [
-        { role: "system", content: "你是一个翻译助手。请将以下英文翻译成中文，只返回翻译结果，不要解释。" },
+        { role: "system", content: systemContent },
         { role: "user", content: text },
       ],
       temperature: 0.3,
       max_tokens: 256,
     }),
   });
-  if (!response.ok) throw new Error(`豆包接口返回 ${await getErrorDetail(response)}`);
+  if (!response.ok) throw new Error(`豆包翻译接口返回 ${await getErrorDetail(response)}`);
   const data = await response.json();
   const translated = data?.choices?.[0]?.message?.content?.trim();
   if (!translated) throw new Error("豆包翻译没有返回有效结果");
   return translated;
 }
 
-export async function translateKimi(text, key) {
+export async function translateKimi(text, key, prompt) {
+  const systemContent = prompt || DEFAULT_SYSTEM_PROMPT;
   const response = await fetch("https://api.moonshot.cn/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -590,7 +674,7 @@ export async function translateKimi(text, key) {
     body: JSON.stringify({
       model: "moonshot-v1-8k",
       messages: [
-        { role: "system", content: "你是一个翻译助手。请将以下英文翻译成中文，只返回翻译结果，不要解释。" },
+        { role: "system", content: systemContent },
         { role: "user", content: text },
       ],
       temperature: 0.3,
@@ -628,7 +712,8 @@ export async function translateOpenAI(text, key) {
   return translated;
 }
 
-export async function translateCustomAI(text, key, apiurl, model) {
+export async function translateCustomAI(text, key, apiurl, model, prompt) {
+  const systemContent = prompt || DEFAULT_SYSTEM_PROMPT;
   // 规范化 URL：去掉尾部斜杠，避免双斜杠
   const baseUrl = apiurl.replace(/\/$/, "");
   const response = await fetch(`${baseUrl}/chat/completions`, {
@@ -640,7 +725,7 @@ export async function translateCustomAI(text, key, apiurl, model) {
     body: JSON.stringify({
       model,
       messages: [
-        { role: "system", content: "你是一个翻译助手。请将以下英文翻译成中文，只返回翻译结果，不要解释。" },
+        { role: "system", content: systemContent },
         { role: "user", content: text },
       ],
       temperature: 0.3,
@@ -654,7 +739,8 @@ export async function translateCustomAI(text, key, apiurl, model) {
   return translated;
 }
 
-export async function translateGemini(text, key) {
+export async function translateGemini(text, key, prompt) {
+  const systemContent = prompt || DEFAULT_SYSTEM_PROMPT;
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${encodeURIComponent(key)}`,
     {
@@ -664,7 +750,7 @@ export async function translateGemini(text, key) {
         contents: [
           {
             parts: [
-              { text: "你是一个翻译助手。请将以下英文翻译成中文，只返回翻译结果，不要解释。" },
+              { text: systemContent },
               { text },
             ],
           },
@@ -680,6 +766,83 @@ export async function translateGemini(text, key) {
   const data = await response.json();
   const translated = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
   if (!translated) throw new Error("Gemini 翻译没有返回有效结果");
+  return translated;
+}
+
+// 百度 ERNIE AI 翻译（使用文心一言 API）
+let baiduAiTokenCache = { token: "", expiresAt: 0 };
+
+async function getBaiduAiAccessToken(apiKey, secretKey) {
+  const now = Date.now();
+  if (baiduAiTokenCache.token && now < baiduAiTokenCache.expiresAt) {
+    return baiduAiTokenCache.token;
+  }
+  const response = await fetch(
+    `https://aip.baidubce.com/oauth/2.0/token?grant_type=client_credentials&client_id=${encodeURIComponent(apiKey)}&client_secret=${encodeURIComponent(secretKey)}`
+  );
+  if (!response.ok) throw new Error(`百度AI获取Token失败：${response.status}`);
+  const data = await response.json();
+  if (!data.access_token) throw new Error(`百度AI获取Token失败：${data.error_description || "未知错误"}`);
+  baiduAiTokenCache = {
+    token: data.access_token,
+    expiresAt: now + (data.expires_in - 600) * 1000, // 提前 10 分钟过期
+  };
+  return baiduAiTokenCache.token;
+}
+
+export async function translateBaiduAI(text, apiKey, secretKey, prompt) {
+  const systemContent = prompt || DEFAULT_SYSTEM_PROMPT;
+  const accessToken = await getBaiduAiAccessToken(apiKey, secretKey);
+
+  const response = await fetch(
+    `https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop/chat/ernie-speed-128k?access_token=${accessToken}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        messages: [
+          { role: "user", content: text },
+        ],
+        system: systemContent,
+        temperature: 0.3,
+        max_output_tokens: 256,
+      }),
+    },
+  );
+  if (!response.ok) throw new Error(`百度AI接口返回 ${await getErrorDetail(response)}`);
+  const data = await response.json();
+  const translated = data?.result?.trim();
+  if (!translated) throw new Error("百度AI翻译没有返回有效结果");
+  return translated;
+}
+
+// 百度大模型文本翻译 API（ait/api/aiTextTranslate）
+export async function translateBaiduLLM(text, appid, appkey) {
+  const salt = Date.now();
+  const signInput = appid + text + salt + appkey;
+  const sign = await md5(signInput);
+
+  const response = await fetch("https://fanyi-api.baidu.com/ait/api/aiTextTranslate", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+      Accept: "application/json",
+    },
+    body: new URLSearchParams({
+      appid,
+      q: text,
+      from: "en",
+      to: "zh",
+      salt: String(salt),
+      sign,
+    }),
+  });
+  if (!response.ok) throw new Error(`百度大模型翻译接口返回 ${await getErrorDetail(response)}`);
+  const data = await response.json();
+  const translated = data?.trans_result?.[0]?.dst?.trim();
+  if (!translated || translated.toLowerCase() === text.toLowerCase()) {
+    throw new Error("百度大模型翻译没有返回有效结果");
+  }
   return translated;
 }
 
