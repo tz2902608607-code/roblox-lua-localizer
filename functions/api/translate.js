@@ -69,8 +69,6 @@ export async function onRequest(context) {
       translated = await translateDeepLX(text);
     } else if (provider === "reverso") {
       translated = await translateReverso(text);
-    } else if (provider === "apertium") {
-      translated = await translateApertium(text);
     } else if (provider === "sogou") {
       translated = await translateSogou(text);
     } else if (provider === "baidu") {
@@ -317,68 +315,116 @@ export async function translateMyMemory(text) {
 }
 
 export async function translateLibre(text) {
-  const response = await fetch("https://libretranslate.de/translate", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-      "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
-    },
-    body: JSON.stringify({
-      q: text,
-      source: "en",
-      target: "zh",
-      format: "text",
-    }),
-  });
-  if (!response.ok) throw new Error(`LibreTranslate 接口返回 ${response.status}`);
-  const data = await response.json();
-  const translated = data?.translatedText?.trim();
-  if (!translated || translated.toLowerCase() === text.toLowerCase()) {
-    throw new Error("LibreTranslate 没有返回有效结果");
+  // 尝试多个 LibreTranslate 公共实例
+  const mirrors = [
+    "https://translate.fedilab.app/translate",
+    "https://libretranslate.pussthecat.org/translate",
+    "https://translate.argosopentech.com/translate",
+  ];
+
+  let lastError;
+  for (const url of mirrors) {
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        },
+        body: JSON.stringify({
+          q: text,
+          source: "en",
+          target: "zh",
+          format: "text",
+        }),
+      });
+      if (!response.ok) {
+        lastError = new Error(`LibreTranslate 接口返回 ${response.status}`);
+        continue;
+      }
+      const data = await response.json();
+      const translated = data?.translatedText?.trim();
+      if (translated && translated.toLowerCase() !== text.toLowerCase()) {
+        return translated;
+      }
+    } catch (err) {
+      lastError = err;
+    }
   }
-  return translated;
+  throw lastError || new Error("LibreTranslate 没有返回有效结果");
 }
 
 export async function translateLingva(text) {
-  const target = `https://lingva.lunar.icu/api/v1/en/zh/${encodeURIComponent(text)}`;
-  const response = await fetch(target, {
-    headers: {
-      Accept: "application/json",
-      "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
-    },
-  });
-  if (!response.ok) throw new Error(`Lingva 接口返回 ${response.status}`);
-  const data = await response.json();
-  const translated = data?.translation?.trim();
-  if (!translated || translated.toLowerCase() === text.toLowerCase()) {
-    throw new Error("Lingva 没有返回有效结果");
+  // 尝试多个 Lingva 公共实例
+  const mirrors = [
+    `https://lingva.lunar.icu/api/v1/en/zh/${encodeURIComponent(text)}`,
+    `https://lingva.ml/api/v1/en/zh/${encodeURIComponent(text)}`,
+    `https://translate.plausibility.cloud/api/v1/en/zh/${encodeURIComponent(text)}`,
+  ];
+
+  let lastError;
+  for (const target of mirrors) {
+    try {
+      const response = await fetch(target, {
+        headers: {
+          Accept: "application/json",
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        },
+      });
+      if (!response.ok) {
+        lastError = new Error(`Lingva 接口返回 ${response.status}`);
+        continue;
+      }
+      const data = await response.json();
+      const translated = data?.translation?.trim();
+      if (translated && translated.toLowerCase() !== text.toLowerCase()) {
+        return translated;
+      }
+    } catch (err) {
+      lastError = err;
+    }
   }
-  return translated;
+  throw lastError || new Error("Lingva 没有返回有效结果");
 }
 
 export async function translateDeepLX(text) {
-  const response = await fetch("https://api.deeplx.org/translate", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-    },
-    body: JSON.stringify({
-      text: text,
-      source_lang: "EN",
-      target_lang: "ZH",
-    }),
-  });
-  if (!response.ok) throw new Error(`DeepLX 接口返回 ${response.status}`);
-  const data = await response.json();
-  const translated = data?.data || data?.translation?.trim();
-  if (!translated || translated.toLowerCase() === text.toLowerCase()) {
-    throw new Error("DeepLX 没有返回有效结果");
+  // 尝试多个 DeepLX 公共实例
+  const mirrors = [
+    "https://api.deeplx.org/translate",
+    "https://deeplx.mingming.dev/translate",
+    "https://deeplx.delphier.workers.dev/translate",
+  ];
+
+  let lastError;
+  for (const url of mirrors) {
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          text: text,
+          source_lang: "EN",
+          target_lang: "ZH",
+        }),
+      });
+      if (!response.ok) {
+        lastError = new Error(`DeepLX 接口返回 ${response.status}`);
+        continue;
+      }
+      const data = await response.json();
+      const translated = data?.data || data?.translation?.trim();
+      if (translated && translated.toLowerCase() !== text.toLowerCase()) {
+        return translated;
+      }
+    } catch (err) {
+      lastError = err;
+    }
   }
-  return translated;
+  throw lastError || new Error("DeepLX 没有返回有效结果");
 }
 
 export async function translateReverso(text) {
@@ -391,42 +437,23 @@ export async function translateReverso(text) {
       Referer: "https://www.reverso.net/",
     },
     body: JSON.stringify({
-      input: text,
-      from: "eng",
-      to: "chi",
-      format: "text",
-      options: {
-        origin: "translation",
-        sentenceSplitter: false,
-        contextResults: true,
-        languageDetection: true,
-      },
-    }),
+        input: text,
+        from: "eng",
+        to: "chi",
+        format: "text",
+        options: {
+          origin: "reversomobile",
+          sentenceSplitter: false,
+          contextResults: true,
+          languageDetection: true,
+        },
+      }),
   });
   if (!response.ok) throw new Error(`Reverso 接口返回 ${response.status}`);
   const data = await response.json();
   const translated = data?.translation?.[0]?.trim();
   if (!translated || translated.toLowerCase() === text.toLowerCase()) {
     throw new Error("Reverso 没有返回有效结果");
-  }
-  return translated;
-}
-
-export async function translateApertium(text) {
-  const response = await fetch(
-    `https://apertium.org/apy/translate?langpair=en|zh&q=${encodeURIComponent(text)}`,
-    {
-      headers: {
-        Accept: "application/json",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-      },
-    }
-  );
-  if (!response.ok) throw new Error(`Apertium 接口返回 ${response.status}`);
-  const data = await response.json();
-  const translated = data?.responseData?.translatedText?.trim();
-  if (!translated || translated.toLowerCase() === text.toLowerCase()) {
-    throw new Error("Apertium 没有返回有效结果");
   }
   return translated;
 }
