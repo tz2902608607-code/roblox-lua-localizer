@@ -107,6 +107,11 @@ export async function onRequest(context) {
         return json({ error: "自定义 AI 需要 key、apiurl 和 model 参数" }, 400);
       }
       translated = await translateCustomAI(text, key, apiurl, model);
+    } else if (provider === "gemini") {
+      if (!key) {
+        return json({ error: "Gemini 翻译需要 key 参数" }, 400);
+      }
+      translated = await translateGemini(text, key);
     } else {
       return json({ error: `未知 provider: ${provider}` }, 400);
     }
@@ -535,6 +540,35 @@ export async function translateCustomAI(text, key, apiurl, model) {
   const data = await response.json();
   const translated = data?.choices?.[0]?.message?.content?.trim();
   if (!translated) throw new Error("自定义 AI 翻译没有返回有效结果");
+  return translated;
+}
+
+export async function translateGemini(text, key) {
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${encodeURIComponent(key)}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              { text: "你是一个翻译助手。请将以下英文翻译成中文，只返回翻译结果，不要解释。" },
+              { text },
+            ],
+          },
+        ],
+        generationConfig: {
+          temperature: 0.3,
+          maxOutputTokens: 256,
+        },
+      }),
+    },
+  );
+  if (!response.ok) throw new Error(`Gemini 接口返回 ${await getErrorDetail(response)}`);
+  const data = await response.json();
+  const translated = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+  if (!translated) throw new Error("Gemini 翻译没有返回有效结果");
   return translated;
 }
 

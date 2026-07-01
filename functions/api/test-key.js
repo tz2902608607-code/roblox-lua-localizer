@@ -9,6 +9,7 @@ import {
   translateKimi,
   translateOpenAI,
   translateCustomAI,
+  translateGemini,
 } from "./translate.js";
 
 export async function onRequest(context) {
@@ -54,6 +55,9 @@ export async function onRequest(context) {
     } else if (provider === "customai") {
       if (!key || !apiurl || !model) return json({ success: false, error: "缺少 Key、API URL 或模型" });
       translated = await translateCustomAI(testText, key, apiurl, model);
+    } else if (provider === "gemini") {
+      if (!key) return json({ success: false, error: "缺少 API Key" });
+      translated = await translateGemini(testText, key);
     } else {
       return json({ success: false, error: `未知 provider: ${provider}` }, 400);
     }
