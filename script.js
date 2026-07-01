@@ -1,6 +1,46 @@
 const STORAGE_KEY = "roblox-localizer-v2";
 const OLD_STORAGE_KEY = "roblox-localizer-v1";
 
+// ========== 访问统计 ==========
+async function initSiteStats() {
+  const statsOnline = document.getElementById("statsOnline");
+  const statsTotal = document.getElementById("statsTotal");
+  if (!statsOnline || !statsTotal) return;
+
+  try {
+    // 上报访问
+    fetch("/api/stats?action=visit", { method: "GET" }).catch(() => {});
+
+    // 获取计数
+    const res = await fetch("/api/stats?action=count");
+    const data = await res.json();
+
+    if (data.kv && !data.error) {
+      statsOnline.textContent = `在线 ${data.online}`;
+      statsTotal.textContent = `访问 ${data.total}`;
+    } else {
+      statsOnline.textContent = "";
+      statsTotal.textContent = "";
+    }
+  } catch {
+    statsOnline.textContent = "";
+    statsTotal.textContent = "";
+  }
+
+  // 每 60 秒刷新一次在线人数
+  setInterval(async () => {
+    try {
+      fetch("/api/stats?action=visit", { method: "GET" }).catch(() => {});
+      const res = await fetch("/api/stats?action=count");
+      const data = await res.json();
+      if (data.kv && !data.error) {
+        statsOnline.textContent = `在线 ${data.online}`;
+        statsTotal.textContent = `访问 ${data.total}`;
+      }
+    } catch {}
+  }, 60000);
+}
+
 let turnstileToken = "";
 window.onTurnstileSuccess = function (token) {
   turnstileToken = token;
@@ -91,6 +131,7 @@ const TRANSLATOR_LABELS = {
   doubao: "豆包 AI 翻译",
   kimi: "Kimi AI 翻译",
   openai: "ChatGPT AI 翻译",
+  gemini: "Gemini AI 翻译",
   customai: "自定义 AI",
 };
 
@@ -106,6 +147,7 @@ const KEY_PROVIDERS = {
   doubao: { fields: [{ id: "doubaoKey", label: "API Key", placeholder: "豆包/火山引擎 API Key" }] },
   kimi: { fields: [{ id: "kimiKey", label: "API Key", placeholder: "Moonshot AI API Key" }] },
   openai: { fields: [{ id: "openaiKey", label: "API Key", placeholder: "OpenAI API Key" }] },
+  gemini: { fields: [{ id: "geminiKey", label: "API Key", placeholder: "Google Gemini API Key" }] },
   customai: {
     fields: [
       { id: "customaiApiUrl", label: "API 地址", placeholder: "如 https://api.siliconflow.cn/v1" },
@@ -656,7 +698,7 @@ async function translateViaProxy(provider, text) {
   }
 
   // AI 接口响应较慢，给更长的超时；免费接口给较短的超时
-  const timeout = ["deepseek", "doubao", "kimi", "openai", "customai"].includes(provider) ? 18000 : 10000;
+  const timeout = ["deepseek", "doubao", "kimi", "openai", "gemini", "customai"].includes(provider) ? 18000 : 10000;
   const response = await fetchWithTimeout(url, { headers: { Accept: "application/json" } }, timeout);
 
   // 读取响应体（无论成功或失败都要读）
@@ -886,7 +928,7 @@ async function autoTranslateRows() {
   const providerLabel = TRANSLATOR_LABELS[state.translatorProvider] || "自动翻译";
   const totalCount = rowsToTranslate.length;
   // 免费接口并发 5-6 条，AI 接口并发 3 条（AI 响应慢，不宜并发太多）
-  const isAiProvider = ["deepseek", "doubao", "kimi", "openai", "customai"].includes(state.translatorProvider);
+  const isAiProvider = ["deepseek", "doubao", "kimi", "openai", "gemini", "customai"].includes(state.translatorProvider);
   const concurrency = isAiProvider ? 3 : (state.translatorProvider === "auto" ? 5 : 4);
   let nextIndex = 0;
 
@@ -1345,6 +1387,7 @@ document.addEventListener("click", (event) => {
 });
 
 loadState();
+initSiteStats();
 updateTranslatorProvider(state.translatorProvider);
 renderApiKeyFields(state.translatorProvider);
 renderRows();

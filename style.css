@@ -225,6 +225,21 @@ button,
   transform: translateY(-1px);
 }
 
+.site-stats {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 8px;
+  font-size: 0.7rem;
+  color: var(--muted);
+  font-weight: 600;
+  pointer-events: none;
+}
+
+.stats-sep {
+  opacity: 0.3;
+}
+
 .sidebar {
   position: fixed;
   top: 0;
