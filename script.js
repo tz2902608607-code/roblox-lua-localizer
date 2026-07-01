@@ -121,6 +121,9 @@ const TRANSLATOR_LABELS = {
   deeplx: "DeepLX 翻译",
   libre: "LibreTranslate 翻译",
   lingva: "Lingva 翻译",
+  reverso: "Reverso 翻译",
+  apertium: "Apertium 翻译",
+  sogou: "搜狗翻译",
   youdao: "有道翻译",
   bing: "必应翻译",
   google: "谷歌翻译",
@@ -136,7 +139,7 @@ const TRANSLATOR_LABELS = {
 };
 
 // 自动选择时的接口尝试顺序（免费接口优先，AI接口需要Key放后面）
-const AUTO_TRANSLATOR_ORDER = ["mymemory", "deeplx", "lingva", "libre", "google", "youdao", "bing"];
+const AUTO_TRANSLATOR_ORDER = ["mymemory", "deeplx", "lingva", "libre", "reverso", "apertium", "sogou", "google", "youdao", "bing"];
 
 // 需要 API Key 的接口配置
 const KEY_PROVIDERS = {
@@ -823,7 +826,7 @@ function getAvailableProviders() {
   available.push("mymemory", "google", "lingva", "libre");
 
   // 需要代理的免费接口
-  available.push("deeplx", "youdao", "bing");
+  available.push("deeplx", "reverso", "apertium", "sogou", "youdao", "bing");
 
   // 已配置 Key 的 AI 接口（质量高，但需要代理）
   for (const [provider, config] of Object.entries(KEY_PROVIDERS)) {
