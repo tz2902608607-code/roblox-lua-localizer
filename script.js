@@ -819,19 +819,16 @@ function getAvailableProviders() {
   const keys = state.apiKeys || {};
   const available = [];
 
-  // 已配置 Key 的 AI 接口优先（质量高，用户主动配置说明想优先使用）
+  // 支持直连的免费接口优先（速度快，不需要代理）
+  available.push("mymemory", "google", "lingva", "libre");
+
+  // 需要代理的免费接口
+  available.push("deeplx", "youdao", "bing");
+
+  // 已配置 Key 的 AI 接口（质量高，但需要代理）
   for (const [provider, config] of Object.entries(KEY_PROVIDERS)) {
     const allFilled = config.fields.every((f) => keys[f.id]);
     if (allFilled) available.push(provider);
-  }
-
-  // 未配置 Key 时，使用免费接口
-  if (available.length === 0) {
-    // 支持直连的免费接口优先（速度快，不需要代理）
-    available.push("mymemory", "google", "lingva", "libre");
-
-    // 需要代理的免费接口
-    available.push("deeplx", "youdao", "bing");
   }
 
   return available;
