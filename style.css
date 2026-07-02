@@ -872,6 +872,33 @@ textarea:focus {
   transition: background 0.2s, transform 0.15s;
 }
 
+.key-btn-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.apply-key-btn {
+  margin-top: 0;
+  padding: 6px 16px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #a78bfa;
+  background: rgba(167, 139, 250, 0.1);
+  border: 1px solid rgba(167, 139, 250, 0.3);
+  border-radius: 10px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.2s, transform 0.15s;
+}
+
+.apply-key-btn:hover {
+  background: rgba(167, 139, 250, 0.2);
+  transform: translateY(-1px);
+}
+
 .test-key-btn:hover:not(:disabled) {
   background: rgba(78, 203, 255, 0.2);
   transform: translateY(-1px);

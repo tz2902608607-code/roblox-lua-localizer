@@ -41,6 +41,36 @@ async function initSiteStats() {
   }, 60000);
 }
 
+// ========== 运营时长 ==========
+const SITE_LAUNCH_DATE = new Date("2026-06-01T00:00:00+08:00");
+
+function initUptime() {
+  const el = document.getElementById("statsUptime");
+  if (!el) return;
+
+  function update() {
+    const now = Date.now();
+    const diff = now - SITE_LAUNCH_DATE.getTime();
+    if (diff < 0) { el.textContent = ""; return; }
+
+    const totalSeconds = Math.floor(diff / 1000);
+    const days = Math.floor(totalSeconds / 86400);
+    const hours = Math.floor((totalSeconds % 86400) / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    let parts = [];
+    if (days > 0) parts.push(`${days} 天`);
+    if (hours > 0 || parts.length > 0) parts.push(`${hours} 小时`);
+    if (minutes > 0 || parts.length > 0) parts.push(`${minutes} 分`);
+    parts.push(`${seconds} 秒`);
+    el.textContent = `已运营 ${parts.join(" ")}`;
+  }
+
+  update();
+  setInterval(update, 1000);
+}
+
 let turnstileToken = "";
 window.onTurnstileSuccess = function (token) {
   turnstileToken = token;
@@ -173,21 +203,21 @@ const AUTO_TRANSLATOR_ORDER = ["mymemory", "deeplx", "lingva", "libre", "reverso
 
 // 需要 API Key 的接口配置
 const KEY_PROVIDERS = {
-  baidu: { fields: [{ id: "baiduAppId", label: "AppID", placeholder: "百度翻译开放平台 AppID" }, { id: "baiduAppKey", label: "AppKey", placeholder: "百度翻译开放平台密钥" }] },
-  baidullm: { fields: [{ id: "baiduAppId", label: "AppID", placeholder: "百度翻译开放平台 AppID" }, { id: "baiduAppKey", label: "AppKey", placeholder: "百度翻译开放平台密钥" }], note: "与百度翻译共用同一个 AppID 和 AppKey" },
-  baiduai: { fields: [{ id: "baiduAiApiKey", label: "API Key", placeholder: "千帆平台 API Key" }, { id: "baiduAiSecretKey", label: "Secret Key", placeholder: "千帆平台 Secret Key" }] },
-  yandex: { fields: [{ id: "yandexKey", label: "API Key", placeholder: "Yandex Translate API Key" }] },
-  deepl: { fields: [{ id: "deeplKey", label: "API Key", placeholder: "DeepL API Key" }] },
-  deepseek: { fields: [{ id: "deepseekKey", label: "API Key", placeholder: "DeepSeek API Key" }] },
-  doubao: { fields: [{ id: "doubaoKey", label: "API Key", placeholder: "豆包/火山引擎 API Key" }] },
-  kimi: { fields: [{ id: "kimiKey", label: "API Key", placeholder: "Moonshot AI API Key" }] },
-  openai: { fields: [{ id: "openaiKey", label: "API Key", placeholder: "OpenAI API Key" }] },
-  gemini: { fields: [{ id: "geminiKey", label: "API Key", placeholder: "Google Gemini API Key" }] },
-  qwen: { fields: [{ id: "qwenKey", label: "API Key", placeholder: "阿里百炼 DashScope API Key" }] },
-  glm: { fields: [{ id: "glmKey", label: "API Key", placeholder: "智谱AI API Key" }] },
-  spark: { fields: [{ id: "sparkKey", label: "API Key", placeholder: "讯飞开放平台 APIPassword" }] },
-  yi: { fields: [{ id: "yiKey", label: "API Key", placeholder: "零一万物 API Key" }] },
-  hunyuan: { fields: [{ id: "hunyuanKey", label: "API Key", placeholder: "腾讯 TokenHub API Key" }] },
+  baidu: { fields: [{ id: "baiduAppId", label: "AppID", placeholder: "百度翻译开放平台 AppID" }, { id: "baiduAppKey", label: "AppKey", placeholder: "百度翻译开放平台密钥" }], applyUrl: "https://fanyi-api.baidu.com/" },
+  baidullm: { fields: [{ id: "baiduAppId", label: "AppID", placeholder: "百度翻译开放平台 AppID" }, { id: "baiduAppKey", label: "AppKey", placeholder: "百度翻译开放平台密钥" }], note: "与百度翻译共用同一个 AppID 和 AppKey", applyUrl: "https://fanyi-api.baidu.com/" },
+  baiduai: { fields: [{ id: "baiduAiApiKey", label: "API Key", placeholder: "千帆平台 API Key" }, { id: "baiduAiSecretKey", label: "Secret Key", placeholder: "千帆平台 Secret Key" }], applyUrl: "https://console.bce.baidu.com/qianfan/ais/console/applicationConsole/application" },
+  yandex: { fields: [{ id: "yandexKey", label: "API Key", placeholder: "Yandex Translate API Key" }], applyUrl: "https://cloud.yandex.com/en/services/translate" },
+  deepl: { fields: [{ id: "deeplKey", label: "API Key", placeholder: "DeepL API Key" }], applyUrl: "https://www.deepl.com/pro-api" },
+  deepseek: { fields: [{ id: "deepseekKey", label: "API Key", placeholder: "DeepSeek API Key" }], applyUrl: "https://platform.deepseek.com/api_keys" },
+  doubao: { fields: [{ id: "doubaoKey", label: "API Key", placeholder: "豆包/火山引擎 API Key" }], applyUrl: "https://console.volcengine.com/ark" },
+  kimi: { fields: [{ id: "kimiKey", label: "API Key", placeholder: "Moonshot AI API Key" }], applyUrl: "https://platform.moonshot.cn/console/api-keys" },
+  openai: { fields: [{ id: "openaiKey", label: "API Key", placeholder: "OpenAI API Key" }], applyUrl: "https://platform.openai.com/api-keys" },
+  gemini: { fields: [{ id: "geminiKey", label: "API Key", placeholder: "Google Gemini API Key" }], applyUrl: "https://aistudio.google.com/app/apikey" },
+  qwen: { fields: [{ id: "qwenKey", label: "API Key", placeholder: "阿里百炼 DashScope API Key" }], applyUrl: "https://bailian.console.aliyun.com/#/api-key" },
+  glm: { fields: [{ id: "glmKey", label: "API Key", placeholder: "智谱AI API Key" }], applyUrl: "https://bigmodel.cn/usercenter/proj-mgmt/apikeys" },
+  spark: { fields: [{ id: "sparkKey", label: "API Key", placeholder: "讯飞开放平台 APIPassword" }], applyUrl: "https://console.xfyun.cn/services/bm3" },
+  yi: { fields: [{ id: "yiKey", label: "API Key", placeholder: "零一万物 API Key" }], applyUrl: "https://platform.lingyiwanwu.com/apikeys" },
+  hunyuan: { fields: [{ id: "hunyuanKey", label: "API Key", placeholder: "腾讯 TokenHub API Key" }], applyUrl: "https://console.cloud.tencent.com/tokenhub" },
   customai: {
     fields: [
       { id: "customaiApiUrl", label: "API 地址", placeholder: "如 https://api.siliconflow.cn/v1" },
@@ -466,7 +496,18 @@ function renderApiKeyFields(provider) {
     els.apiKeyFields.append(label);
   });
 
-  // 添加测试按钮
+  // 添加 note 提示
+  if (config.note) {
+    const note = document.createElement("small");
+    note.className = "api-key-note";
+    note.textContent = config.note;
+    els.apiKeyFields.append(note);
+  }
+
+  // 添加按钮行：测试 Key + 申请 Key
+  const btnRow = document.createElement("div");
+  btnRow.className = "key-btn-row";
+
   const testBtn = document.createElement("button");
   testBtn.type = "button";
   testBtn.className = "btn test-key-btn";
@@ -525,8 +566,20 @@ function renderApiKeyFields(provider) {
       testBtn.textContent = "测试 Key";
     }
   });
+  btnRow.append(testBtn);
 
-  els.apiKeyFields.append(testBtn);
+  // 添加"申请 Key"按钮
+  if (config.applyUrl) {
+    const applyBtn = document.createElement("a");
+    applyBtn.className = "btn apply-key-btn";
+    applyBtn.href = config.applyUrl;
+    applyBtn.target = "_blank";
+    applyBtn.rel = "noopener noreferrer";
+    applyBtn.textContent = "申请 Key";
+    btnRow.append(applyBtn);
+  }
+
+  els.apiKeyFields.append(btnRow);
 }
 
 function saveState() {
@@ -1494,6 +1547,7 @@ document.addEventListener("click", (event) => {
 
 loadState();
 initSiteStats();
+initUptime();
 
 // AI 提示词输入框事件
 if (els.aiPromptInput) {
