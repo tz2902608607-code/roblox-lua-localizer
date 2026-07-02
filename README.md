@@ -4,6 +4,9 @@
 
 项目地址：<https://github.com/tz2902608607-code/roblox-lua-localizer>
 
+项目体验地址：
+<https://liyizhou.cc.cd>
+
 ## 功能
 
 - 添加英文原文和中文翻译词条
