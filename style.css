@@ -196,6 +196,7 @@ button,
     transform 0.28s var(--ease-pop),
     background 0.22s var(--ease-smooth),
     border-color 0.22s var(--ease-smooth);
+  flex-wrap: wrap;
 }
 
 .brand:hover {
@@ -234,6 +235,7 @@ button,
   color: var(--muted);
   font-weight: 600;
   pointer-events: none;
+  flex-wrap: wrap;
 }
 
 .stats-sep {
@@ -1483,6 +1485,7 @@ footer {
 
   .brand {
     padding: 9px 12px;
+    white-space: normal;
   }
 
   .page-shell {
@@ -1936,7 +1939,15 @@ footer {
   .brand {
     max-width: calc(100vw - 72px);
     padding: 9px 12px;
-    white-space: nowrap;
+    white-space: normal;
+    line-height: 1.4;
+    gap: 4px;
+  }
+
+  .site-stats {
+    margin-left: 0;
+    font-size: 0.62rem;
+    gap: 4px;
   }
 
   .page-shell {
