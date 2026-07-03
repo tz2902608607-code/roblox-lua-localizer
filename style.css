@@ -862,7 +862,7 @@ textarea:focus {
 }
 
 .test-key-btn {
-  margin-top: 8px;
+  margin-top: 0;
   padding: 6px 16px;
   font-size: 0.8rem;
   font-weight: 600;

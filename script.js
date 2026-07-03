@@ -98,6 +98,46 @@ window.onTurnstileExpired = function () {
   }
 };
 
+const LANGUAGES = {
+  auto: "自动检测",
+  en: "英语",
+  zh: "中文",
+  ja: "日语",
+  ko: "韩语",
+  fr: "法语",
+  de: "德语",
+  es: "西班牙语",
+  pt: "葡萄牙语",
+  ru: "俄语",
+  it: "意大利语",
+  nl: "荷兰语",
+  sv: "瑞典语",
+  ar: "阿拉伯语",
+  th: "泰语",
+  vi: "越南语",
+  id: "印尼语",
+  ms: "马来语",
+};
+
+// 语言代码映射：前端代码 → 各接口 API 代码
+function langToApi(code) {
+  const map = {
+    auto: "auto", en: "en", zh: "zh", ja: "ja", ko: "ko",
+    fr: "fr", de: "de", es: "es", pt: "pt", ru: "ru",
+    it: "it", nl: "nl", sv: "sv", ar: "ar", th: "th",
+    vi: "vi", id: "id", ms: "ms",
+  };
+  return map[code] || code;
+}
+
+// 语言代码 → 中文名（用于 AI prompt）
+const LANG_NAMES = {
+  en: "英文", zh: "中文", ja: "日文", ko: "韩文", fr: "法文",
+  de: "德文", es: "西班牙文", pt: "葡萄牙文", ru: "俄文",
+  it: "意大利文", nl: "荷兰文", sv: "瑞典文", ar: "阿拉伯文",
+  th: "泰文", vi: "越南文", id: "印尼文", ms: "马来文",
+};
+
 const state = {
   translations: [
     { en: "", cn: "" },
@@ -105,6 +145,8 @@ const state = {
   translatorProvider: "auto",
   apiKeys: {},
   aiPrompt: "",
+  translateFrom: "en",
+  translateTo: "zh",
 };
 
 const LOCAL_TRANSLATION_DICTIONARY = {
@@ -280,6 +322,8 @@ const els = {
   apiKeyFields: document.querySelector("#apiKeyFields"),
   aiPromptWrap: document.querySelector("#aiPromptWrap"),
   aiPromptInput: document.querySelector("#aiPromptInput"),
+  translateFrom: document.querySelector("#translateFrom"),
+  translateTo: document.querySelector("#translateTo"),
 };
 
 function showToast(message) {
@@ -591,6 +635,8 @@ function saveState() {
     translatorProvider: state.translatorProvider,
     apiKeys: getApiKeys(),
     aiPrompt: state.aiPrompt,
+    translateFrom: state.translateFrom,
+    translateTo: state.translateTo,
   };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
 }
@@ -617,6 +663,14 @@ function loadState() {
 
     if (typeof payload.aiPrompt === "string") {
       state.aiPrompt = payload.aiPrompt;
+    }
+
+    if (typeof payload.translateFrom === "string" && LANGUAGES[payload.translateFrom]) {
+      state.translateFrom = payload.translateFrom;
+    }
+
+    if (typeof payload.translateTo === "string" && LANGUAGES[payload.translateTo]) {
+      state.translateTo = payload.translateTo;
     }
 
     if (Array.isArray(payload.translations)) {
@@ -803,6 +857,7 @@ async function translateViaProxy(provider, text) {
   }
 
   let url = `/api/translate?provider=${encodeURIComponent(provider)}&text=${encodeURIComponent(text)}`;
+  url += `&from=${encodeURIComponent(state.translateFrom)}&to=${encodeURIComponent(state.translateTo)}`;
 
   // 附加 Turnstile token（如果已完成验证）
   if (turnstileToken) {
@@ -908,7 +963,9 @@ async function translateViaProxy(provider, text) {
 }
 
 async function translateWithGoogleDirect(text) {
-  const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt=t&q=${encodeURIComponent(text)}`;
+  const sl = state.translateFrom === "auto" ? "auto" : langToApi(state.translateFrom);
+  const tl = langToApi(state.translateTo) === "zh" ? "zh-CN" : langToApi(state.translateTo);
+  const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${sl}&tl=${tl}&dt=t&q=${encodeURIComponent(text)}`;
   const response = await fetchWithTimeout(url);
   if (!response.ok) throw new Error("谷歌翻译接口请求失败");
   const data = await response.json();
@@ -918,7 +975,9 @@ async function translateWithGoogleDirect(text) {
 }
 
 async function translateWithMyMemoryDirect(text) {
-  const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|zh-CN`;
+  const from = langToApi(state.translateFrom) === "zh" ? "zh-CN" : langToApi(state.translateFrom);
+  const to = langToApi(state.translateTo) === "zh" ? "zh-CN" : langToApi(state.translateTo);
+  const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${from}|${to}`;
   const response = await fetchWithTimeout(url);
   if (!response.ok) throw new Error("MyMemory 翻译接口请求失败");
   const data = await response.json();
@@ -930,7 +989,9 @@ async function translateWithMyMemoryDirect(text) {
 }
 
 async function translateWithLingvaDirect(text) {
-  const url = `https://lingva.lunar.icu/api/v1/en/zh/${encodeURIComponent(text)}`;
+  const sl = langToApi(state.translateFrom);
+  const tl = langToApi(state.translateTo);
+  const url = `https://lingva.lunar.icu/api/v1/${sl}/${tl}/${encodeURIComponent(text)}`;
   const response = await fetchWithTimeout(url);
   if (!response.ok) throw new Error("Lingva 翻译接口请求失败");
   const data = await response.json();
@@ -942,6 +1003,8 @@ async function translateWithLingvaDirect(text) {
 }
 
 async function translateWithLibreDirect(text) {
+  const source = langToApi(state.translateFrom);
+  const target = langToApi(state.translateTo);
   const response = await fetchWithTimeout("https://libretranslate.de/translate", {
     method: "POST",
     headers: {
@@ -950,8 +1013,8 @@ async function translateWithLibreDirect(text) {
     },
     body: JSON.stringify({
       q: text,
-      source: "en",
-      target: "zh",
+      source: source,
+      target: target,
       format: "text",
     }),
   }, 12000);
@@ -1559,5 +1622,41 @@ if (els.aiPromptInput) {
 }
 updateTranslatorProvider(state.translatorProvider);
 renderApiKeyFields(state.translatorProvider);
+
+// 初始化语言选择下拉框
+function populateLanguageSelects() {
+  // 源语言下拉框（包含"自动检测"）
+  els.translateFrom.innerHTML = "";
+  for (const [code, name] of Object.entries(LANGUAGES)) {
+    const option = document.createElement("option");
+    option.value = code;
+    option.textContent = name;
+    if (code === state.translateFrom) option.selected = true;
+    els.translateFrom.append(option);
+  }
+
+  // 目标语言下拉框（不包含"自动检测"）
+  els.translateTo.innerHTML = "";
+  for (const [code, name] of Object.entries(LANGUAGES)) {
+    if (code === "auto") continue;
+    const option = document.createElement("option");
+    option.value = code;
+    option.textContent = name;
+    if (code === state.translateTo) option.selected = true;
+    els.translateTo.append(option);
+  }
+}
+
+populateLanguageSelects();
+
+els.translateFrom.addEventListener("change", () => {
+  state.translateFrom = els.translateFrom.value;
+  saveState();
+});
+els.translateTo.addEventListener("change", () => {
+  state.translateTo = els.translateTo.value;
+  saveState();
+});
+
 renderRows();
 loadRandomBackground();

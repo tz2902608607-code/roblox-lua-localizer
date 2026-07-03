@@ -26,7 +26,7 @@
       <div class="brand">
         <strong>Roblox 汉化工具</strong>
         <small>正式版</small>
-        <a href="./changelog.html" class="version-badge" title="查看更新日志">v3.0.1</a>
+        <a href="./changelog.html" class="version-badge" title="查看更新日志">v3.1.0</a>
         <div class="site-stats" id="siteStats">
           <span id="statsOnline" title="当前在线">-</span>
           <span class="stats-sep">|</span>
@@ -190,6 +190,14 @@
                   <option value="customai">自定义 AI（OpenAI 兼容）</option>
                 </select>
               </label>
+              <label class="translator-field">
+                <span>源语言</span>
+                <select id="translateFrom" class="translator-native-select" aria-label="选择源语言"></select>
+              </label>
+              <label class="translator-field">
+                <span>目标语言</span>
+                <select id="translateTo" class="translator-native-select" aria-label="选择目标语言"></select>
+              </label>
               <button id="autoTranslateBtn" class="btn primary" type="button">自动翻译</button>
             </div>
             <div class="turnstile-wrap" id="turnstileWrap">
@@ -257,30 +265,43 @@
           <div class="card-header">
             <div>
               <h2>使用教程</h2>
-              <p>建议按“提取文本 → 自动翻译 → 生成脚本”的顺序使用。</p>
+              <p>手动翻译为主，自动翻译辅助。建议按以下流程操作。</p>
             </div>
-            <span class="badge">推荐流程</span>
+            <span class="badge">完整指南</span>
           </div>
 
           <div class="guide-list">
             <article>
               <span class="step">1</span>
               <div>
-                <h3>提取当前页面 UI 文本</h3>
+                <h3>提取游戏 UI 文本</h3>
                 <p>
-                  在目标游戏中执行以下 UI 文本提取脚本，它会自动抓取当前页面上的英文 UI 文本，方便你复制到汉化词条列表中。
+                  在目标游戏中执行以下 UI 文本提取脚本，它会自动抓取当前页面的英文 UI 文本并输出到控制台，方便你复制到本工具的词条列表中。
                 </p>
                 <pre><code id="extractCode">loadstring(game:HttpGet("https://raw.githubusercontent.com/suif666/suif/refs/heads/main/UI_Text_Collector_Optimized_v21.lua"))()</code></pre>
                 <button id="copyExtractBtn" class="btn" type="button">复制提取脚本</button>
+                <p>
+                  <strong>提示：</strong>提取完成后，复制输出的文本，回到本工具继续操作。
+                </p>
               </div>
             </article>
 
-                        <article>
+            <article>
               <span class="step">2</span>
               <div>
-                <h3>导入英文文本到词条列表</h3>
+                <h3>导入英文原文</h3>
                 <p>
-                  把提取到的英文 UI 文本粘贴到首页的词条列表中（每行一条）。如果同一段文本重复出现，只保留一条即可。也可以通过 JSON 文件批量导入。
+                  回到本工具首页，把提取到的英文 UI 文本粘贴到词条列表的"英文原文"列中。每行对应一条文本。如果同一段文本重复出现，只保留一条即可。
+                </p>
+                <p>
+                  <strong>批量导入：</strong>也可以点击"导入 JSON"按钮，通过 JSON 文件一次性导入多条文本。支持的格式：
+                </p>
+                <pre><code>[
+  { "英文原文": "Play", "中文翻译": "开始" },
+  ["Settings", "设置"]
+]</code></pre>
+                <p>
+                  导入后，在"中文翻译"列手动填写对应的中文翻译。
                 </p>
               </div>
             </article>
@@ -288,9 +309,15 @@
             <article>
               <span class="step">3</span>
               <div>
-                <h3>自动翻译</h3>
+                <h3>手动填写中文翻译</h3>
                 <p>
-                  选择翻译接口后点击"自动翻译"，工具会批量把英文原文翻译成中文。推荐使用"自动选择"模式，会依次尝试多个免费接口。如果翻译质量不满意，可以配置 AI 接口的 API Key 获得更好效果。
+                  在词条列表的"中文翻译"列中，逐条填写每段英文对应的中文翻译。这是最核心的一步，翻译质量直接影响游戏体验。
+                </p>
+                <p>
+                  <strong>建议：</strong>翻译游戏 UI 文本时，注意以下几点：
+                </p>
+                <p>
+                  尽量简洁，游戏 UI 空间有限，翻译过长可能显示不全；使用玩家习惯的用语，比如"Play"翻译为"开始"或"游玩"而非"游戏"；专有名词（如游戏名、地名）可以保留原文或使用约定俗成的译名；保持风格统一，同一类按钮用相同的动词（如都用"确认"而非混用"确认"和"确定"）。
                 </p>
               </div>
             </article>
@@ -298,9 +325,47 @@
             <article>
               <span class="step">4</span>
               <div>
-                <h3>选择模式并生成脚本</h3>
+                <h3>使用自动翻译辅助（可选）</h3>
                 <p>
-                  默认使用普通扫描模式（兼容性好）。只有在普通扫描无法处理动态 UI 文本，且确认目标游戏没有反作弊时，再开启 Hook 模式。如需加载外部脚本，填写远程 Raw 链接。点击"生成脚本"即可复制或下载 <code>.lua</code> 文件。
+                  自动翻译功能目前处于 <strong>Beta 测试阶段</strong>，翻译结果可能不够准确，建议仅作为参考。使用方式：
+                </p>
+                <p>
+                  1. 选择翻译接口（推荐"自动选择"，会依次尝试多个免费接口）；2. 可以调整源语言和目标语言（支持 18 种语言）；3. 如果翻译质量不满意，可以配置 AI 接口的 API Key（如 DeepSeek、通义千问等）获得更好效果；4. 点击"自动翻译"，等待批量翻译完成。
+                </p>
+                <p>
+                  <strong>重要提示：</strong>自动翻译的结果仅供参考，请务必逐条检查并手动修正不准确的翻译。机器翻译可能无法正确处理游戏专有术语、缩写或上下文相关的文本。
+                </p>
+              </div>
+            </article>
+
+            <article>
+              <span class="step">5</span>
+              <div>
+                <h3>配置生成选项</h3>
+                <p>
+                  在生成脚本之前，可以调整以下选项：
+                </p>
+                <p>
+                  <strong>Hook 模式：</strong>默认关闭（普通扫描模式），兼容性更好。只有在普通扫描无法处理动态加载的 UI 文本，且确认目标游戏没有反作弊时，才开启 Hook 模式。
+                </p>
+                <p>
+                  <strong>远程脚本链接：</strong>如果汉化脚本需要配合外部脚本使用，填写其 Raw 链接。请只使用可信来源的链接。
+                </p>
+              </div>
+            </article>
+
+            <article>
+              <span class="step">6</span>
+              <div>
+                <h3>生成脚本</h3>
+                <p>
+                  确认所有词条的翻译填写完成后，点击"生成脚本"。代码会显示在输出区域，可以：
+                </p>
+                <p>
+                  复制代码到执行器运行；或下载为 <code>.lua</code> 文件，方便保存或分享。
+                </p>
+                <p>
+                  <strong>提示：</strong>生成前建议检查词条是否完整，确保没有遗漏的英文原文未翻译。
                 </p>
               </div>
             </article>
