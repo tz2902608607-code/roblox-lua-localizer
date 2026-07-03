@@ -1313,6 +1313,130 @@ code {
   }
 }
 
+/* ===== 打赏悬浮按钮 ===== */
+.reward-fab {
+  position: fixed;
+  right: 20px;
+  bottom: 80px;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ff6b9d, #c44dff);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 900;
+  box-shadow: 0 4px 16px rgba(196, 77, 255, 0.35);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  pointer-events: auto;
+}
+
+.reward-fab:hover {
+  transform: scale(1.12);
+  box-shadow: 0 6px 24px rgba(196, 77, 255, 0.5);
+}
+
+.reward-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(6px);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.reward-overlay.is-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.reward-modal {
+  position: relative;
+  background: rgba(12, 22, 45, 0.92);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 32px 28px 24px;
+  max-width: 420px;
+  width: 90%;
+  text-align: center;
+  backdrop-filter: blur(18px);
+  transform: translateY(20px) scale(0.95);
+  transition: transform 0.3s ease;
+}
+
+.reward-overlay.is-open .reward-modal {
+  transform: translateY(0) scale(1);
+}
+
+.reward-modal h3.reward-title {
+  font-size: 1.25rem;
+  font-weight: 800;
+  margin: 0 0 8px;
+  background: linear-gradient(90deg, #ff6b9d, #c44dff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.reward-modal p.reward-desc {
+  font-size: 0.92rem;
+  color: var(--muted);
+  margin: 0 0 24px;
+  line-height: 1.6;
+}
+
+.reward-close {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 1.4rem;
+  cursor: pointer;
+  transition: color 0.2s;
+  line-height: 1;
+}
+
+.reward-close:hover {
+  color: var(--text);
+}
+
+.reward-qrcodes {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.reward-qr-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.reward-qr-item span {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.reward-qr-item img {
+  width: 150px;
+  height: 150px;
+  object-fit: contain;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: #fff;
+}
+
 @keyframes cardIn {
   from {
     opacity: 0;

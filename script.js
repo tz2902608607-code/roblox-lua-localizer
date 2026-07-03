@@ -71,6 +71,20 @@ function initUptime() {
   setInterval(update, 1000);
 }
 
+// ========== 打赏弹窗 ==========
+function initRewardModal() {
+  const fab = document.getElementById("rewardFab");
+  const overlay = document.getElementById("rewardOverlay");
+  const closeBtn = document.getElementById("rewardClose");
+  if (!fab || !overlay || !closeBtn) return;
+
+  fab.addEventListener("click", () => overlay.classList.add("is-open"));
+  closeBtn.addEventListener("click", () => overlay.classList.remove("is-open"));
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) overlay.classList.remove("is-open");
+  });
+}
+
 let turnstileToken = "";
 window.onTurnstileSuccess = function (token) {
   turnstileToken = token;
@@ -1611,6 +1625,7 @@ document.addEventListener("click", (event) => {
 loadState();
 initSiteStats();
 initUptime();
+initRewardModal();
 
 // AI 提示词输入框事件
 if (els.aiPromptInput) {
