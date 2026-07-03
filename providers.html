@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>翻译接口 - Roblox 汉化工具</title>
+    <link rel="stylesheet" href="./style.css?v=20260703-providers" />
+    <style>
+      .providers-page {
+        max-width: 860px;
+        margin: 0 auto;
+        padding: 100px 20px 60px;
+      }
+      .providers-title {
+        font-size: clamp(1.6rem, 4vw, 2.2rem);
+        font-weight: 800;
+        text-align: center;
+        margin-bottom: 40px;
+        background: linear-gradient(90deg, var(--primary), var(--primary-2));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+      .providers-section {
+        margin-bottom: 36px;
+      }
+      .providers-section h2 {
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: var(--text);
+        margin-bottom: 16px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid var(--line);
+      }
+      .providers-table-wrap {
+        overflow-x: auto;
+        border-radius: var(--radius);
+        border: 1px solid var(--line);
+      }
+      .providers-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.88rem;
+      }
+      .providers-table thead th {
+        background: rgba(6, 14, 29, 0.6);
+        color: var(--primary-2);
+        font-weight: 600;
+        text-align: left;
+        padding: 12px 14px;
+        white-space: nowrap;
+      }
+      .providers-table tbody tr {
+        border-top: 1px solid var(--line);
+      }
+      .providers-table tbody td {
+        padding: 10px 14px;
+        color: var(--muted);
+        vertical-align: top;
+      }
+      .providers-table tbody tr:hover {
+        background: rgba(78, 203, 255, 0.04);
+      }
+      .providers-table a {
+        color: var(--primary);
+        text-decoration: none;
+      }
+      .providers-table a:hover {
+        text-decoration: underline;
+      }
+      .providers-note {
+        color: var(--muted);
+        font-size: 0.85rem;
+        line-height: 1.7;
+        margin-top: 14px;
+        padding: 14px 18px;
+        background: rgba(78, 203, 255, 0.05);
+        border: 1px solid rgba(78, 203, 255, 0.15);
+        border-radius: 14px;
+      }
+      .providers-note strong {
+        color: var(--primary-2);
+      }
+      .back-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--primary);
+        text-decoration: none;
+        font-weight: 700;
+        font-size: 0.9rem;
+        margin-bottom: 20px;
+        transition: opacity 0.2s;
+        pointer-events: auto;
+      }
+      .back-link:hover {
+        opacity: 0.8;
+      }
+      .lang-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: 6px 14px;
+        margin-top: 10px;
+        font-size: 0.86rem;
+        color: var(--muted);
+      }
+      .lang-list span {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .lang-list code {
+        background: rgba(78, 203, 255, 0.1);
+        padding: 1px 6px;
+        border-radius: 5px;
+        font-size: 0.78rem;
+        color: var(--primary-2);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="bg-layer">
+      <img id="bgImage" alt="" />
+    </div>
+    <div class="bg-mask"></div>
+
+    <header class="topbar">
+      <a href="./index.html" class="back-link">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M19 12H5M12 19l-7-7 7-7"/>
+        </svg>
+        返回首页
+      </a>
+      <div class="brand">
+        <strong>Roblox 汉化工具</strong>
+        <small>翻译接口</small>
+      </div>
+    </header>
+
+    <main class="providers-page">
+      <h1 class="providers-title">翻译接口</h1>
+
+      <div class="providers-section">
+        <h2>免费接口（无需 Key）</h2>
+        <div class="providers-table-wrap">
+          <table class="providers-table">
+            <thead>
+              <tr>
+                <th>接口</th>
+                <th>说明</th>
+                <th>支持语言</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>MyMemory</td>
+                <td>免费翻译，自动选择首选</td>
+                <td>100+ 种语言</td>
+              </tr>
+              <tr>
+                <td>DeepLX</td>
+                <td>DeepL 免费代理（多实例 fallback）</td>
+                <td>30+ 种语言</td>
+              </tr>
+              <tr>
+                <td>Lingva</td>
+                <td>谷歌翻译代理（多实例 fallback）</td>
+                <td>100+ 种语言</td>
+              </tr>
+              <tr>
+                <td>LibreTranslate</td>
+                <td>开源翻译（多实例 fallback）</td>
+                <td>30+ 种语言</td>
+              </tr>
+              <tr>
+                <td>Reverso</td>
+                <td>在线翻译</td>
+                <td>20+ 种语言</td>
+              </tr>
+              <tr>
+                <td>搜狗翻译</td>
+                <td>在线翻译</td>
+                <td>常见语言</td>
+              </tr>
+              <tr>
+                <td>彩云小译</td>
+                <td>在线翻译</td>
+                <td>中英互译为主</td>
+              </tr>
+              <tr>
+                <td>有道翻译</td>
+                <td>在线翻译</td>
+                <td>常见语言</td>
+              </tr>
+              <tr>
+                <td>必应翻译</td>
+                <td>在线翻译</td>
+                <td>100+ 种语言</td>
+              </tr>
+              <tr>
+                <td>谷歌翻译</td>
+                <td>需 VPN</td>
+                <td>100+ 种语言</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="providers-section">
+        <h2>需 Key 的翻译接口</h2>
+        <div class="providers-table-wrap">
+          <table class="providers-table">
+            <thead>
+              <tr>
+                <th>接口</th>
+                <th>模型</th>
+                <th>免费额度</th>
+                <th>申请地址</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>百度翻译（机翻）</td>
+                <td>通用翻译</td>
+                <td>100W 字符/月</td>
+                <td><a href="https://fanyi-api.baidu.com/" target="_blank" rel="noopener">fanyi-api.baidu.com</a></td>
+              </tr>
+              <tr>
+                <td>百度大模型翻译</td>
+                <td>大模型翻译</td>
+                <td>认证后 100W 字符/月</td>
+                <td><a href="https://fanyi-api.baidu.com/" target="_blank" rel="noopener">fanyi-api.baidu.com</a></td>
+              </tr>
+              <tr>
+                <td>百度AI 翻译</td>
+                <td>文心一言 ERNIE Speed</td>
+                <td>免费</td>
+                <td><a href="https://console.bce.baidu.com/qianfan/ais/console/applicationConsole/application" target="_blank" rel="noopener">千帆控制台</a></td>
+              </tr>
+              <tr>
+                <td>DeepSeek AI</td>
+                <td>DeepSeek</td>
+                <td>新用户免费额度</td>
+                <td><a href="https://platform.deepseek.com/api_keys" target="_blank" rel="noopener">platform.deepseek.com</a></td>
+              </tr>
+              <tr>
+                <td>豆包 AI</td>
+                <td>豆包</td>
+                <td>新用户免费额度</td>
+                <td><a href="https://console.volcengine.com/ark" target="_blank" rel="noopener">火山引擎</a></td>
+              </tr>
+              <tr>
+                <td>Kimi AI</td>
+                <td>Moonshot</td>
+                <td>新用户免费额度</td>
+                <td><a href="https://platform.moonshot.cn/console/api-keys" target="_blank" rel="noopener">Moonshot</a></td>
+              </tr>
+              <tr>
+                <td>ChatGPT AI</td>
+                <td>GPT</td>
+                <td>按量付费</td>
+                <td><a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">OpenAI</a></td>
+              </tr>
+              <tr>
+                <td>Gemini AI</td>
+                <td>Gemini</td>
+                <td>有免费额度</td>
+                <td><a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Google AI Studio</a></td>
+              </tr>
+              <tr>
+                <td>通义千问 AI</td>
+                <td>qwen-turbo</td>
+                <td>新用户 7000W Token</td>
+                <td><a href="https://bailian.console.aliyun.com/#/api-key" target="_blank" rel="noopener">百炼控制台</a></td>
+              </tr>
+              <tr>
+                <td>智谱AI GLM</td>
+                <td>glm-4.7-flash</td>
+                <td><strong>永久免费</strong></td>
+                <td><a href="https://bigmodel.cn/usercenter/proj-mgmt/apikeys" target="_blank" rel="noopener">智谱AI</a></td>
+              </tr>
+              <tr>
+                <td>讯飞星火</td>
+                <td>lite</td>
+                <td><strong>永久免费</strong></td>
+                <td><a href="https://console.xfyun.cn/services/bm3" target="_blank" rel="noopener">讯飞开放平台</a></td>
+              </tr>
+              <tr>
+                <td>零一万物 Yi</td>
+                <td>yi-lightning</td>
+                <td>新用户 360W Token</td>
+                <td><a href="https://platform.lingyiwanwu.com/apikeys" target="_blank" rel="noopener">零一万物</a></td>
+              </tr>
+              <tr>
+                <td>腾讯混元</td>
+                <td>hunyuan-turbo</td>
+                <td>新用户 100W Token</td>
+                <td><a href="https://console.cloud.tencent.com/tokenhub" target="_blank" rel="noopener">TokenHub</a></td>
+              </tr>
+              <tr>
+                <td>Yandex 翻译</td>
+                <td>Yandex</td>
+                <td>有免费额度</td>
+                <td><a href="https://cloud.yandex.com/en/services/translate" target="_blank" rel="noopener">Yandex Cloud</a></td>
+              </tr>
+              <tr>
+                <td>DeepL 翻译</td>
+                <td>DeepL</td>
+                <td>有免费额度</td>
+                <td><a href="https://www.deepl.com/pro-api" target="_blank" rel="noopener">DeepL</a></td>
+              </tr>
+              <tr>
+                <td>自定义 AI</td>
+                <td>OpenAI 兼容</td>
+                <td>取决于平台</td>
+                <td>自行填写 API 地址和模型</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="providers-note">
+          <strong>提示：</strong>AI 翻译接口均支持自定义提示词，可选择留空使用默认提示词，或自定义翻译风格。API Key 仅保存在浏览器本地，不会上传到服务器。
+        </div>
+      </div>
+
+      <div class="providers-section">
+        <h2>支持的语言</h2>
+        <p style="color: var(--muted); font-size: 0.9rem; margin-bottom: 8px;">
+          本工具目前支持以下 18 种语言。源语言可选择"自动检测"，目标语言需明确指定。
+        </p>
+        <div class="lang-list">
+          <span><code>auto</code> 自动检测</span>
+          <span><code>en</code> 英语</span>
+          <span><code>zh</code> 中文</span>
+          <span><code>ja</code> 日语</span>
+          <span><code>ko</code> 韩语</span>
+          <span><code>fr</code> 法语</span>
+          <span><code>de</code> 德语</span>
+          <span><code>es</code> 西班牙语</span>
+          <span><code>pt</code> 葡萄牙语</span>
+          <span><code>ru</code> 俄语</span>
+          <span><code>it</code> 意大利语</span>
+          <span><code>nl</code> 荷兰语</span>
+          <span><code>sv</code> 瑞典语</span>
+          <span><code>ar</code> 阿拉伯语</span>
+          <span><code>th</code> 泰语</span>
+          <span><code>vi</code> 越南语</span>
+          <span><code>id</code> 印尼语</span>
+          <span><code>ms</code> 马来语</span>
+        </div>
+      </div>
+    </main>
+
+    <script>
+      const images = [
+        "https://images.unsplash.com/photo-1534796636912-3b95b3ab5986?w=1920&q=80",
+        "https://images.unsplash.com/photo-1506318137071-a8bcbf6d9436?w=1920&q=80",
+        "https://images.unsplash.com/photo-1518066000714-58c45f1a2c0a?w=1920&q=80",
+      ];
+      document.getElementById("bgImage").src = images[Math.floor(Math.random() * images.length)];
+    </script>
+  </body>
+</html>
