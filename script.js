@@ -1243,6 +1243,14 @@ function escapeLuaString(value) {
     .replace(/"/g, '\\"');
 }
 
+function buildTranslationLuaTable(items) {
+  const lines = [];
+  items.forEach((item) => {
+    lines.push(`    ["${escapeLuaString(item.en)}"] = "${escapeLuaString(item.cn)}",`);
+  });
+  return lines.join("\n");
+}
+
 function isLikelyUrl(value) {
   if (!value) return true;
   try {
@@ -1256,186 +1264,186 @@ function isLikelyUrl(value) {
 function buildLuaScript() {
   const translations = getCleanTranslations();
   const rawUrl = els.rawUrl.value.trim();
-  const scanInterval = Number(els.scanInterval.value) || 3;
   const useHook = els.hookEnabled.checked;
 
   if (translations.length === 0) {
     throw new Error("请至少填写一组完整的英文原文和中文翻译。");
   }
 
-  if (!isLikelyUrl(rawUrl)) {
+  if (rawUrl && !isLikelyUrl(rawUrl)) {
     throw new Error("远程脚本 Raw 链接格式不正确，请填写 http 或 https 链接。");
   }
 
-  const lines = [];
-  lines.push("-- Roblox 汉化脚本");
-  lines.push("-- 由 Roblox 汉化脚本在线生成器生成");
-  lines.push("-- 默认使用普通扫描模式。Hook 模式可能被反作弊拦截，请谨慎开启。");
-  lines.push("");
-  lines.push("local Translations = {");
-  translations.forEach((item) => {
-    lines.push(`    ["${escapeLuaString(item.en)}"] = "${escapeLuaString(item.cn)}",`);
-  });
-  lines.push("}");
-  lines.push("");
-  lines.push("local TextClasses = {");
-  lines.push("    TextLabel = true,");
-  lines.push("    TextButton = true,");
-  lines.push("    TextBox = true,");
-  lines.push("}");
-  lines.push("");
-  lines.push("local function isTextObject(obj)");
-  lines.push("    return obj and TextClasses[obj.ClassName] == true");
-  lines.push("end");
-  lines.push("");
-  lines.push("local function escapePattern(text)");
-  lines.push("    return text:gsub(\"(%W)\", \"%%%1\")");
-  lines.push("end");
-  lines.push("");
-  lines.push("local function translateText(text)");
-  lines.push("    if type(text) ~= \"string\" or text == \"\" then");
-  lines.push("        return text");
-  lines.push("    end");
-  lines.push("");
-  lines.push("    if Translations[text] then");
-  lines.push("        return Translations[text]");
-  lines.push("    end");
-  lines.push("");
-  lines.push("    for en, cn in pairs(Translations) do");
-  lines.push("        if string.find(text, en, 1, true) then");
-  lines.push("            text = string.gsub(text, escapePattern(en), cn)");
-  lines.push("        end");
-  lines.push("    end");
-  lines.push("");
-  lines.push("    return text");
-  lines.push("end");
-  lines.push("");
-  lines.push("local function translateObject(obj)");
-  lines.push("    if not isTextObject(obj) then");
-  lines.push("        return");
-  lines.push("    end");
-  lines.push("");
-  lines.push("    pcall(function()");
-  lines.push("        local oldText = obj.Text");
-  lines.push("        local newText = translateText(oldText)");
-  lines.push("");
-  lines.push("        if newText ~= oldText then");
-  lines.push("            obj.Text = newText");
-  lines.push("        end");
-  lines.push("    end)");
-  lines.push("end");
-  lines.push("");
-  lines.push("local function scanContainer(container)");
-  lines.push("    if not container then");
-  lines.push("        return");
-  lines.push("    end");
-  lines.push("");
-  lines.push("    pcall(function()");
-  lines.push("        for _, obj in ipairs(container:GetDescendants()) do");
-  lines.push("            translateObject(obj)");
-  lines.push("        end");
-  lines.push("    end)");
-  lines.push("end");
-  lines.push("");
-  lines.push("local function listenContainer(container)");
-  lines.push("    if not container then");
-  lines.push("        return");
-  lines.push("    end");
-  lines.push("");
-  lines.push("    pcall(function()");
-  lines.push("        container.DescendantAdded:Connect(function(obj)");
-  lines.push("            task.defer(function()");
-  lines.push("                task.wait(0.05)");
-  lines.push("                translateObject(obj)");
-  lines.push("            end)");
-  lines.push("        end)");
-  lines.push("    end)");
-  lines.push("end");
-  lines.push("");
-  lines.push("local function setupFallbackTranslation()");
-  lines.push("    local CoreGui = game:GetService(\"CoreGui\")");
-  lines.push("    local Players = game:GetService(\"Players\")");
-  lines.push("    local LocalPlayer = Players.LocalPlayer");
-  lines.push("");
-  lines.push("    scanContainer(CoreGui)");
-  lines.push("    listenContainer(CoreGui)");
-  lines.push("");
-  lines.push("    if LocalPlayer then");
-  lines.push("        local PlayerGui = LocalPlayer:FindFirstChild(\"PlayerGui\") or LocalPlayer:WaitForChild(\"PlayerGui\", 5)");
-  lines.push("");
-  lines.push("        if PlayerGui then");
-  lines.push("            scanContainer(PlayerGui)");
-  lines.push("            listenContainer(PlayerGui)");
-  lines.push("        end");
-  lines.push("    end");
-  lines.push("");
-  lines.push("    task.spawn(function()");
-  lines.push(`        while task.wait(${scanInterval}) do`);
-  lines.push("            scanContainer(CoreGui)");
-  lines.push("");
-  lines.push("            local player = Players.LocalPlayer");
-  lines.push("            if player and player:FindFirstChild(\"PlayerGui\") then");
-  lines.push("                scanContainer(player.PlayerGui)");
-  lines.push("            end");
-  lines.push("        end");
-  lines.push("    end)");
-  lines.push("end");
-  lines.push("");
-  lines.push("local function setupHookTranslation()");
-  lines.push("    local mt = getrawmetatable(game)");
-  lines.push("    local oldNewIndex = mt.__newindex");
-  lines.push("");
-  lines.push("    setreadonly(mt, false)");
-  lines.push("");
-  lines.push("    mt.__newindex = newcclosure(function(t, k, v)");
-  lines.push("        if isTextObject(t) and k == \"Text\" and type(v) == \"string\" then");
-  lines.push("            v = translateText(v)");
-  lines.push("        end");
-  lines.push("");
-  lines.push("        return oldNewIndex(t, k, v)");
-  lines.push("    end)");
-  lines.push("");
-  lines.push("    setreadonly(mt, true)");
-  lines.push("end");
-  lines.push("");
-  lines.push("local function setupTranslationEngine()");
+  const today = new Date().toISOString().split("T")[0];
+  const translationTable = buildTranslationLuaTable(translations);
+  const hookValue = useHook ? "true" : "false";
 
-  if (useHook) {
-    lines.push("    local success, err = pcall(function()");
-    lines.push("        setupHookTranslation()");
-    lines.push("    end)");
-    lines.push("");
-    lines.push("    if success then");
-    lines.push("        print(\"翻译引擎：Hook 模式已启用\")");
-    lines.push("    else");
-    lines.push("        warn(\"Hook 模式失败，已切换普通扫描模式：\", err)");
-    lines.push("        setupFallbackTranslation()");
-    lines.push("    end");
-  } else {
-    lines.push("    setupFallbackTranslation()");
-    lines.push("    print(\"翻译引擎：普通扫描模式已启用\")");
-  }
+  let script = `-- Roblox 汉化脚本
+-- 由 Roblox 汉化脚本在线生成器生成 (v3.2.0)
+-- 生成时间: ${today}
 
-  lines.push("end");
-  lines.push("");
-  lines.push("setupTranslationEngine()");
+_G.ForsakenHanHuaActive = true
+
+Translations = {
+${translationTable}
+}
+
+PartialTranslations = {
+    -- 部分替换表（暂时留空，后续可支持用户填写）
+}
+
+-- ===== 下面不要动 =====
+local Players = game:GetService("Players")
+local CoreGui = game:GetService("CoreGui")
+local PlayerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
+
+local SystemUiNames = {
+    RobloxGui=true, PlayerList=true, Backpack=true, Chat=true, BubbleChat=true,
+    ExperienceChat=true, TextChatService=true, TopBar=true, Topbar=true, Health=true,
+    EmotesMenu=true, Chrome=true, InspectMenu=true, PurchasePrompt=true,
+    ScreenshotHud=true, HookTranslateChoice=true
+}
+
+local WatchedRoots, WatchedObjects, TranslatingObjects = setmetatable({},{__mode="k"}), setmetatable({},{__mode="k"}), setmetatable({},{__mode="k"})
+
+-- ===== 翻译模式 =====
+local UseHookTranslation = ${hookValue}
+
+local function TranslateText(txt)
+    if type(txt) ~= "string" or txt == "" then return txt end
+    local clean = txt:gsub("<[^>]->", ""):gsub("\\r", ""):gsub("^%s+", ""):gsub("%s+$", "")
+
+    -- 1. 精确匹配（整句）
+    local exact = Translations[txt] or Translations[clean]
+    if exact then return exact end
+
+    -- 2. 部分替换（只替换指定词）
+    local result = txt
+    for original, translated in pairs(PartialTranslations) do
+        result = result:gsub(original, translated)   -- 区分大小写，全局替换
+    end
+    return result
+end
+
+-- Hook
+local function IsSysUI(obj)
+    while obj do
+        if SystemUiNames[obj.Name] then return true end
+        obj = obj.Parent
+    end return false
+end
+
+local function TranslateObj(obj)
+    if IsSysUI(obj) or TranslatingObjects[obj] then return end
+    TranslatingObjects[obj] = true
+    pcall(function()
+        local nText, nPlace = TranslateText(obj.Text), TranslateText(obj.PlaceholderText)
+        if nText ~= obj.Text then obj.Text = nText end
+        if nPlace ~= obj.PlaceholderText then obj.PlaceholderText = nPlace end
+    end)
+    TranslatingObjects[obj] = nil
+end
+
+local function WatchObj(obj)
+    if not (obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox")) or WatchedObjects[obj] then return end
+    WatchedObjects[obj] = true
+    TranslateObj(obj)
+
+    for _, prop in ipairs({"Text", "PlaceholderText"}) do
+        pcall(function()
+            obj:GetPropertyChangedSignal(prop):Connect(function()
+                if not TranslatingObjects[obj] then task.delay(0.03, function() TranslateObj(obj) end) end
+            end)
+        end)
+    end
+end
+
+local function GetRoots()
+    local roots = {PlayerGui}
+    pcall(function() table.insert(roots, CoreGui) end)
+    pcall(function() if gethui then table.insert(roots, gethui()) end end)
+    return roots
+end
+
+local function ScanAndWatch(root)
+    if not root or WatchedRoots[root] then return end
+    WatchedRoots[root] = true
+
+    pcall(function()
+        for _, obj in ipairs(root:GetDescendants()) do WatchObj(obj) end
+        root.DescendantAdded:Connect(function(obj)
+            task.delay(0.05, function()
+                WatchObj(obj)
+                pcall(function() for _, c in ipairs(obj:GetDescendants()) do WatchObj(c) end end)
+            end)
+        end)
+    end)
+end
+
+if UseHookTranslation then
+    local ok, err = pcall(function()
+        local mt = getrawmetatable(game)
+        local oldNewIndex = mt.__newindex
+        setreadonly(mt, false)
+        local safeNewcclosure = newcclosure or function(f) return f end
+        mt.__newindex = safeNewcclosure(function(t, k, v)
+            if (k == "Text" or k == "PlaceholderText") and (t:IsA("TextLabel") or t:IsA("TextButton") or t:IsA("TextBox")) and not IsSysUI(t) then
+                v = TranslateText(tostring(v))
+            end
+            return oldNewIndex(t, k, v)
+        end)
+        setreadonly(mt, true)
+    end)
+    if not ok then warn("汉化 Hook 不可用，已使用监听/扫描模式：", err) end
+end
+
+task.spawn(function()
+    while _G.ForsakenHanHuaActive do
+        for _, root in ipairs(GetRoots()) do
+            ScanAndWatch(root)
+            pcall(function() for _, obj in ipairs(root:GetDescendants()) do WatchObj(obj) end end)
+        end
+        task.wait(8)
+    end
+end)
+
+task.wait(0.5)
+`;
 
   if (rawUrl) {
-    lines.push("");
-    lines.push("local success, err = pcall(function()");
-    lines.push(`    loadstring(game:HttpGet("${escapeLuaString(rawUrl)}"))()`);
-    lines.push("end)");
-    lines.push("");
-    lines.push("if not success then");
-    lines.push("    warn(\"远程脚本加载失败：\", err)");
-    lines.push("end");
-  } else {
-    lines.push("");
-    lines.push("-- 未填写远程脚本 Raw 链接。");
-    lines.push("-- 如需加载外部脚本，请在生成器中填写链接后重新生成。");
+    script += `
+local ScriptUrl = "${escapeLuaString(rawUrl)}"
+local ok, content = pcall(function()
+    return game:HttpGet(ScriptUrl)
+end)
+
+if not ok or not content or content == "" then
+    warn("外部脚本下载失败：", content or "空内容")
+else
+    local loadOk, func = pcall(function()
+        return loadstring(content)
+    end)
+    if not loadOk then
+        warn("外部脚本编译失败：", func)
+    elseif not func then
+        warn("外部脚本编译返回 nil")
+    else
+        local execOk, err = pcall(func)
+        if not execOk then
+            warn("外部脚本执行失败：", err)
+        else
+            print("外部脚本已成功加载并执行")
+        end
+    end
+end
+`;
   }
 
-  return lines.join("\n");
+  script += `
+print("[汉化] 已加载（精确匹配 + 部分替换）")
+`;
+
+  return script;
 }
 
 function generateScript() {
