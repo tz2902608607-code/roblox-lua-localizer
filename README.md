@@ -200,6 +200,13 @@ fetch('/api/translate?provider=mymemory&text=hello').then(r => r.json()).then(co
 
 ## 更新日志
 
+### v3.2.1（2026-07-23）
+
+- 修复外部脚本下载阻塞主线程导致游戏卡死的问题（改为异步加载）
+- 修复 DescendantAdded 处理器过度扫描导致卡顿
+- 优化重复扫描逻辑，减少不必要的 GetDescendants 调用
+- Translations 和 PartialTranslations 改为全局变量，外部脚本可直接注入数据
+
 ### v3.2.0（2026-07-13）
 
 - 生成脚本全面升级，采用汉化模板 v3

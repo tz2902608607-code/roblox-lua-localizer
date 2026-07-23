@@ -1352,7 +1352,7 @@ local function WatchObj(obj)
     for _, prop in ipairs({"Text", "PlaceholderText"}) do
         pcall(function()
             obj:GetPropertyChangedSignal(prop):Connect(function()
-                if not TranslatingObjects[obj] then task.delay(0.03, function() TranslateObj(obj) end) end
+                if not TranslatingObjects[obj] then task.delay(0.1, function() TranslateObj(obj) end) end
             end)
         end)
     end
@@ -1372,9 +1372,8 @@ local function ScanAndWatch(root)
     pcall(function()
         for _, obj in ipairs(root:GetDescendants()) do WatchObj(obj) end
         root.DescendantAdded:Connect(function(obj)
-            task.delay(0.05, function()
+            task.delay(0.1, function()
                 WatchObj(obj)
-                pcall(function() for _, c in ipairs(obj:GetDescendants()) do WatchObj(c) end end)
             end)
         end)
     end)
@@ -1401,7 +1400,6 @@ task.spawn(function()
     while _G.ForsakenHanHuaActive do
         for _, root in ipairs(GetRoots()) do
             ScanAndWatch(root)
-            pcall(function() for _, obj in ipairs(root:GetDescendants()) do WatchObj(obj) end end)
         end
         task.wait(8)
     end
@@ -1412,14 +1410,17 @@ task.wait(0.5)
 
   if (rawUrl) {
     script += `
-local ScriptUrl = "${escapeLuaString(rawUrl)}"
-local ok, content = pcall(function()
-    return game:HttpGet(ScriptUrl)
-end)
+task.spawn(function()
+    local ScriptUrl = "${escapeLuaString(rawUrl)}"
+    local ok, content = pcall(function()
+        return game:HttpGet(ScriptUrl)
+    end)
 
-if not ok or not content or content == "" then
-    warn("外部脚本下载失败：", content or "空内容")
-else
+    if not ok or not content or content == "" then
+        warn("外部脚本下载失败：", content or "空内容")
+        return
+    end
+
     local loadOk, func = pcall(function()
         return loadstring(content)
     end)
@@ -1435,7 +1436,7 @@ else
             print("外部脚本已成功加载并执行")
         end
     end
-end
+end)
 `;
   }
 

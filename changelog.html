@@ -102,6 +102,19 @@
 
       <div class="version-card">
         <div class="version-header">
+          <span class="version-tag">v3.2.1</span>
+          <span class="version-date">2026-07-23</span>
+        </div>
+        <ul>
+          <li>修复外部脚本下载阻塞主线程导致游戏卡死的问题（改为异步加载）</li>
+          <li>修复 DescendantAdded 处理器过度扫描导致卡顿</li>
+          <li>优化重复扫描逻辑，减少不必要的 GetDescendants 调用</li>
+          <li>Translations 和 PartialTranslations 改为全局变量，外部脚本可直接注入数据</li>
+        </ul>
+      </div>
+
+      <div class="version-card">
+        <div class="version-header">
           <span class="version-tag">v3.2.0</span>
           <span class="version-date">2026-07-13</span>
         </div>
