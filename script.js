@@ -144,14 +144,6 @@ function langToApi(code) {
   return map[code] || code;
 }
 
-// 语言代码 → 中文名（用于 AI prompt）
-const LANG_NAMES = {
-  en: "英文", zh: "中文", ja: "日文", ko: "韩文", fr: "法文",
-  de: "德文", es: "西班牙文", pt: "葡萄牙文", ru: "俄文",
-  it: "意大利文", nl: "荷兰文", sv: "瑞典文", ar: "阿拉伯文",
-  th: "泰文", vi: "越南文", id: "印尼文", ms: "马来文",
-};
-
 const state = {
   translations: [
     { en: "", cn: "" },
@@ -254,9 +246,6 @@ const TRANSLATOR_LABELS = {
   customai: "自定义 AI",
 };
 
-// 自动选择时的接口尝试顺序（免费接口优先，AI接口需要Key放后面）
-const AUTO_TRANSLATOR_ORDER = ["mymemory", "deeplx", "lingva", "libre", "reverso", "sogou", "caiyun", "google", "youdao", "bing"];
-
 // 需要 API Key 的接口配置
 const KEY_PROVIDERS = {
   baidu: { fields: [{ id: "baiduAppId", label: "AppID", placeholder: "百度翻译开放平台 AppID" }, { id: "baiduAppKey", label: "AppKey", placeholder: "百度翻译开放平台密钥" }], applyUrl: "https://fanyi-api.baidu.com/" },
@@ -283,13 +272,7 @@ const KEY_PROVIDERS = {
   },
 };
 
-// 旧版兼容：将 KEY_PROVIDERS 转成 { fieldId: keyConfig } 的快速查找表
-const KEY_FIELD_MAP = {};
-for (const [provider, config] of Object.entries(KEY_PROVIDERS)) {
-  for (const field of config.fields) {
-    KEY_FIELD_MAP[field.id] = { provider, type: field.id === "baiduAppId" ? "appid" : field.id === "baiduAppKey" ? "appkey" : "key" };
-  }
-}
+const AI_PROVIDERS = ["deepseek", "doubao", "kimi", "openai", "gemini", "baiduai", "qwen", "glm", "spark", "yi", "hunyuan", "customai"];
 
 const els = {
   bgImage: document.querySelector("#bgImage"),
@@ -508,7 +491,7 @@ function renderApiKeyFields(provider) {
   els.apiKeyInline.classList.remove("hidden");
 
   // AI 提示词区域：仅在 AI 接口时显示
-  const isAi = ["deepseek", "doubao", "kimi", "openai", "gemini", "baiduai", "qwen", "glm", "spark", "yi", "hunyuan", "customai"].includes(provider);
+  const isAi = AI_PROVIDERS.includes(provider);
   if (els.aiPromptWrap) {
     els.aiPromptWrap.style.display = isAi ? "" : "none";
     if (isAi && els.aiPromptInput) {
@@ -919,7 +902,7 @@ async function translateViaProxy(provider, text) {
   }
 
   // AI 接口响应较慢，给更长的超时；免费接口给较短的超时
-  const isAiProvider = ["deepseek", "doubao", "kimi", "openai", "gemini", "baiduai", "qwen", "glm", "spark", "yi", "hunyuan", "customai"].includes(provider);
+  const isAiProvider = AI_PROVIDERS.includes(provider);
   const timeout = isAiProvider ? 18000 : 10000;
 
   // AI 接口附加自定义提示词
@@ -989,9 +972,10 @@ async function translateWithGoogleDirect(text) {
 }
 
 async function translateWithMyMemoryDirect(text) {
-  const from = langToApi(state.translateFrom) === "zh" ? "zh-CN" : langToApi(state.translateFrom);
+  const from = langToApi(state.translateFrom) === "zh" ? "zh-CN" : (langToApi(state.translateFrom) === "auto" ? "" : langToApi(state.translateFrom));
   const to = langToApi(state.translateTo) === "zh" ? "zh-CN" : langToApi(state.translateTo);
-  const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${from}|${to}`;
+  const langpair = from ? `${from}|${to}` : to;
+  const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${langpair}`;
   const response = await fetchWithTimeout(url);
   if (!response.ok) throw new Error("MyMemory 翻译接口请求失败");
   const data = await response.json();
@@ -1164,7 +1148,7 @@ async function autoTranslateRows() {
   const providerLabel = TRANSLATOR_LABELS[state.translatorProvider] || "自动翻译";
   const totalCount = rowsToTranslate.length;
   // 免费接口并发 5-6 条，AI 接口并发 3 条（AI 响应慢，不宜并发太多）
-  const isAiProvider = ["deepseek", "doubao", "kimi", "openai", "gemini", "baiduai", "qwen", "glm", "spark", "yi", "hunyuan", "customai"].includes(state.translatorProvider);
+  const isAiProvider = AI_PROVIDERS.includes(state.translatorProvider);
   const concurrency = isAiProvider ? 3 : (state.translatorProvider === "auto" ? 5 : 4);
   let nextIndex = 0;
 
@@ -1279,7 +1263,7 @@ function buildLuaScript() {
   const hookValue = useHook ? "true" : "false";
 
   let script = `-- Roblox 汉化脚本
--- 由 Roblox 汉化脚本在线生成器生成 (v3.2.0)
+-- 由 Roblox 汉化脚本在线生成器生成 (v3.2.2)
 -- 生成时间: ${today}
 
 _G.ForsakenHanHuaActive = true
@@ -1626,9 +1610,6 @@ document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
     closeMenu();
   }
-});
-
-document.addEventListener("click", (event) => {
 });
 
 loadState();
