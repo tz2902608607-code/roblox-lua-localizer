@@ -65,8 +65,8 @@ export async function onRequest(context) {
   const langToBaidu = (code) => API_LANG_MAP[code] || code;
   const langToGoogleSL = (code) => code === "auto" ? "auto" : (code === "zh" ? "zh-CN" : code);
   const langToGoogleTL = (code) => code === "zh" ? "zh-CN" : code;
-  const langToMyMemory = (code) => code === "zh" ? "zh-CN" : code;
-  const langToDeepLXSource = (code) => code.toUpperCase();
+  const langToMyMemory = (code) => code === "auto" ? "" : (code === "zh" ? "zh-CN" : code);
+  const langToDeepLXSource = (code) => code === "auto" ? "auto" : code.toUpperCase();
   const langToDeepLXTarget = (code) => code.toUpperCase();
   const langToReverso = (code) => {
     const map = { en: "eng", zh: "chi", ja: "jpn", ko: "kor", fr: "fre", de: "ger", es: "spa", pt: "por", ru: "rus", it: "ita", nl: "dut", sv: "swe", ar: "ara", th: "tha", vi: "vie", id: "ind", ms: "msa" };
@@ -378,7 +378,8 @@ export async function translateGoogle(text, sl = "en", tl = "zh-CN") {
 }
 
 export async function translateMyMemory(text, from = "en", to = "zh-CN") {
-  const target = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${encodeURIComponent(from)}|${encodeURIComponent(to)}`;
+  const langpair = from ? `${encodeURIComponent(from)}|${encodeURIComponent(to)}` : encodeURIComponent(to);
+  const target = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${langpair}`;
   const response = await fetch(target);
   if (!response.ok) throw new Error(`MyMemory 接口返回 ${response.status}`);
   const data = await response.json();
@@ -464,6 +465,8 @@ export async function translateLingva(text, source = "en", target = "zh") {
 }
 
 export async function translateDeepLX(text, source_lang = "EN", target_lang = "ZH") {
+  // DeepL 不支持 "auto"，自动检测时默认用英文
+  if (source_lang === "auto" || source_lang === "AUTO") source_lang = "EN";
   // 尝试多个 DeepLX 公共实例
   const mirrors = [
     "https://api.deeplx.org/translate",
@@ -883,7 +886,7 @@ export async function translateBaiduAI(text, apiKey, secretKey, prompt) {
 export async function translateBaiduLLM(text, appid, appkey, from = "en", to = "zh") {
   const salt = Date.now();
   const signInput = appid + text + salt + appkey;
-  const sign = await md5(signInput);
+  const sign = md5(signInput);
 
   const response = await fetch("https://fanyi-api.baidu.com/ait/api/aiTextTranslate", {
     method: "POST",
@@ -952,21 +955,4 @@ export function md5(inputString) {
   return rh(a) + rh(b) + rh(c) + rh(d);
 }
 
-// 十六进制字符串转 Uint8Array
-export function hexToBytes(hex) {
-  const bytes = new Uint8Array(hex.length / 2);
-  for (let i = 0; i < hex.length; i += 2) {
-    bytes[i / 2] = parseInt(hex.substr(i, 2), 16);
-  }
-  return bytes;
-}
 
-// Base64 字符串转 Uint8Array
-export function base64ToBytes(base64) {
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  return bytes;
-}
