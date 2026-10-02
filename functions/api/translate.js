@@ -126,25 +126,25 @@ export async function onRequest(context) {
         return json({ error: "DeepSeek 翻译需要 key 参数" }, 400);
       }
       const sysPrompt = prompt || buildSystemPrompt(fromLang, toLang);
-      translated = await translateDeepSeek(text, key, sysPrompt);
+      translated = await translateDeepSeek(text, key, sysPrompt, model);
     } else if (provider === "doubao") {
       if (!key) {
         return json({ error: "豆包翻译需要 key 参数" }, 400);
       }
       const sysPrompt = prompt || buildSystemPrompt(fromLang, toLang);
-      translated = await translateDoubao(text, key, sysPrompt);
+      translated = await translateDoubao(text, key, sysPrompt, model);
     } else if (provider === "kimi") {
       if (!key) {
         return json({ error: "Kimi 翻译需要 key 参数" }, 400);
       }
       const sysPrompt = prompt || buildSystemPrompt(fromLang, toLang);
-      translated = await translateKimi(text, key, sysPrompt);
+      translated = await translateKimi(text, key, sysPrompt, model);
     } else if (provider === "openai") {
       if (!key) {
         return json({ error: "ChatGPT 翻译需要 key 参数" }, 400);
       }
       const sysPrompt = prompt || buildSystemPrompt(fromLang, toLang);
-      translated = await translateOpenAI(text, key, sysPrompt);
+      translated = await translateOpenAI(text, key, sysPrompt, model);
     } else if (provider === "customai") {
       if (!key || !apiurl || !model) {
         return json({ error: "自定义 AI 需要 key、apiurl 和 model 参数" }, 400);
@@ -156,33 +156,33 @@ export async function onRequest(context) {
         return json({ error: "Gemini 翻译需要 key 参数" }, 400);
       }
       const sysPrompt = prompt || buildSystemPrompt(fromLang, toLang);
-      translated = await translateGemini(text, key, sysPrompt);
+      translated = await translateGemini(text, key, sysPrompt, model);
     } else if (provider === "baiduai") {
       if (!appid || !appkey) {
         return json({ error: "百度AI翻译需要 API Key 和 Secret Key" }, 400);
       }
       const sysPrompt = prompt || buildSystemPrompt(fromLang, toLang);
-      translated = await translateBaiduAI(text, appid, appkey, sysPrompt);
+      translated = await translateBaiduAI(text, appid, appkey, sysPrompt, model);
     } else if (provider === "qwen") {
       if (!key) return json({ error: "通义千问翻译需要 API Key" }, 400);
       const sysPrompt = prompt || buildSystemPrompt(fromLang, toLang);
-      translated = await translateOpenAICompat(text, key, "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions", "qwen-turbo", sysPrompt);
+      translated = await translateOpenAICompat(text, key, "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions", model || "qwen-turbo", sysPrompt);
     } else if (provider === "glm") {
       if (!key) return json({ error: "智谱AI翻译需要 API Key" }, 400);
       const sysPrompt = prompt || buildSystemPrompt(fromLang, toLang);
-      translated = await translateOpenAICompat(text, key, "https://open.bigmodel.cn/api/paas/v4/chat/completions", "glm-4.7-flash", sysPrompt);
+      translated = await translateOpenAICompat(text, key, "https://open.bigmodel.cn/api/paas/v4/chat/completions", model || "glm-4.7-flash", sysPrompt);
     } else if (provider === "spark") {
       if (!key) return json({ error: "讯飞星火翻译需要 API Key" }, 400);
       const sysPrompt = prompt || buildSystemPrompt(fromLang, toLang);
-      translated = await translateOpenAICompat(text, key, "https://spark-api-open.xf-yun.com/v1/chat/completions", "lite", sysPrompt);
+      translated = await translateOpenAICompat(text, key, "https://spark-api-open.xf-yun.com/v1/chat/completions", model || "lite", sysPrompt);
     } else if (provider === "yi") {
       if (!key) return json({ error: "零一万物翻译需要 API Key" }, 400);
       const sysPrompt = prompt || buildSystemPrompt(fromLang, toLang);
-      translated = await translateOpenAICompat(text, key, "https://api.lingyiwanwu.com/v1/chat/completions", "yi-lightning", sysPrompt);
+      translated = await translateOpenAICompat(text, key, "https://api.lingyiwanwu.com/v1/chat/completions", model || "yi-lightning", sysPrompt);
     } else if (provider === "hunyuan") {
       if (!key) return json({ error: "腾讯混元翻译需要 API Key" }, 400);
       const sysPrompt = prompt || buildSystemPrompt(fromLang, toLang);
-      translated = await translateOpenAICompat(text, key, "https://tokenhub.tencentmaas.com/v1/chat/completions", "hunyuan-turbo", sysPrompt);
+      translated = await translateOpenAICompat(text, key, "https://tokenhub.tencentmaas.com/v1/chat/completions", model || "hunyuan-turbo", sysPrompt);
     } else {
       return json({ error: `未知 provider: ${provider}` }, 400);
     }
@@ -378,7 +378,7 @@ export async function translateGoogle(text, sl = "en", tl = "zh-CN") {
 }
 
 export async function translateMyMemory(text, from = "en", to = "zh-CN") {
-  const langpair = from ? `${encodeURIComponent(from)}|${encodeURIComponent(to)}` : encodeURIComponent(to);
+  const langpair = from ? `${encodeURIComponent(from)}|${encodeURIComponent(to)}` : `|${encodeURIComponent(to)}`;
   const target = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${langpair}`;
   const response = await fetch(target);
   if (!response.ok) throw new Error(`MyMemory 接口返回 ${response.status}`);
@@ -678,7 +678,7 @@ export async function translateOpenAICompat(text, apiKey, endpoint, model, promp
   return translated;
 }
 
-export async function translateDeepSeek(text, key, prompt) {
+export async function translateDeepSeek(text, key, prompt, model = "") {
   const systemContent = prompt || DEFAULT_SYSTEM_PROMPT;
   const response = await fetch("https://api.deepseek.com/v1/chat/completions", {
     method: "POST",
@@ -687,7 +687,7 @@ export async function translateDeepSeek(text, key, prompt) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "deepseek-chat",
+      model: model || "deepseek-chat",
       messages: [
         { role: "system", content: systemContent },
         { role: "user", content: text },
@@ -703,7 +703,7 @@ export async function translateDeepSeek(text, key, prompt) {
   return translated;
 }
 
-export async function translateDoubao(text, key, prompt) {
+export async function translateDoubao(text, key, prompt, model = "") {
   const systemContent = prompt || DEFAULT_SYSTEM_PROMPT;
   const response = await fetch("https://ark.cn-beijing.volces.com/api/v3/chat/completions", {
     method: "POST",
@@ -712,7 +712,7 @@ export async function translateDoubao(text, key, prompt) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "doubao-pro-32k",
+      model: model || "doubao-pro-32k",
       messages: [
         { role: "system", content: systemContent },
         { role: "user", content: text },
@@ -728,7 +728,7 @@ export async function translateDoubao(text, key, prompt) {
   return translated;
 }
 
-export async function translateKimi(text, key, prompt) {
+export async function translateKimi(text, key, prompt, model = "") {
   const systemContent = prompt || DEFAULT_SYSTEM_PROMPT;
   const response = await fetch("https://api.moonshot.cn/v1/chat/completions", {
     method: "POST",
@@ -737,7 +737,7 @@ export async function translateKimi(text, key, prompt) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "moonshot-v1-8k",
+      model: model || "moonshot-v1-8k",
       messages: [
         { role: "system", content: systemContent },
         { role: "user", content: text },
@@ -753,7 +753,7 @@ export async function translateKimi(text, key, prompt) {
   return translated;
 }
 
-export async function translateOpenAI(text, key, prompt) {
+export async function translateOpenAI(text, key, prompt, model = "") {
   const systemContent = prompt || DEFAULT_SYSTEM_PROMPT;
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
@@ -762,7 +762,7 @@ export async function translateOpenAI(text, key, prompt) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "gpt-3.5-turbo",
+      model: model || "gpt-3.5-turbo",
       messages: [
         { role: "system", content: systemContent },
         { role: "user", content: text },
@@ -805,10 +805,10 @@ export async function translateCustomAI(text, key, apiurl, model, prompt) {
   return translated;
 }
 
-export async function translateGemini(text, key, prompt) {
+export async function translateGemini(text, key, prompt, model = "") {
   const systemContent = prompt || DEFAULT_SYSTEM_PROMPT;
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${encodeURIComponent(key)}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model || "gemini-2.0-flash")}:generateContent?key=${encodeURIComponent(key)}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -856,12 +856,12 @@ async function getBaiduAiAccessToken(apiKey, secretKey) {
   return baiduAiTokenCache.token;
 }
 
-export async function translateBaiduAI(text, apiKey, secretKey, prompt) {
+export async function translateBaiduAI(text, apiKey, secretKey, prompt, model = "") {
   const systemContent = prompt || DEFAULT_SYSTEM_PROMPT;
   const accessToken = await getBaiduAiAccessToken(apiKey, secretKey);
 
   const response = await fetch(
-    `https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop/chat/ernie-speed-128k?access_token=${accessToken}`,
+    `https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop/chat/${encodeURIComponent(model || "ernie-speed-128k")}?access_token=${accessToken}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },

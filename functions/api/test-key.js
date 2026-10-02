@@ -48,40 +48,40 @@ export async function onRequest(context) {
       translated = await translateDeepL(testText, key);
     } else if (provider === "deepseek") {
       if (!key) return json({ success: false, error: "缺少 API Key" });
-      translated = await translateDeepSeek(testText, key);
+      translated = await translateDeepSeek(testText, key, undefined, model);
     } else if (provider === "doubao") {
       if (!key) return json({ success: false, error: "缺少 API Key" });
-      translated = await translateDoubao(testText, key);
+      translated = await translateDoubao(testText, key, undefined, model);
     } else if (provider === "kimi") {
       if (!key) return json({ success: false, error: "缺少 API Key" });
-      translated = await translateKimi(testText, key);
+      translated = await translateKimi(testText, key, undefined, model);
     } else if (provider === "openai") {
       if (!key) return json({ success: false, error: "缺少 API Key" });
-      translated = await translateOpenAI(testText, key);
+      translated = await translateOpenAI(testText, key, undefined, model);
     } else if (provider === "customai") {
       if (!key || !apiurl || !model) return json({ success: false, error: "缺少 Key、API URL 或模型" });
       translated = await translateCustomAI(testText, key, apiurl, model);
     } else if (provider === "gemini") {
       if (!key) return json({ success: false, error: "缺少 API Key" });
-      translated = await translateGemini(testText, key);
+      translated = await translateGemini(testText, key, undefined, model);
     } else if (provider === "baiduai") {
       if (!appid || !appkey) return json({ success: false, error: "缺少 API Key 或 Secret Key" });
-      translated = await translateBaiduAI(testText, appid, appkey);
+      translated = await translateBaiduAI(testText, appid, appkey, undefined, model);
     } else if (provider === "qwen") {
       if (!key) return json({ success: false, error: "缺少 API Key" });
-      translated = await translateOpenAICompat(testText, key, "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions", "qwen-turbo");
+      translated = await translateOpenAICompat(testText, key, "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions", model || "qwen-turbo");
     } else if (provider === "glm") {
       if (!key) return json({ success: false, error: "缺少 API Key" });
-      translated = await translateOpenAICompat(testText, key, "https://open.bigmodel.cn/api/paas/v4/chat/completions", "glm-4.7-flash");
+      translated = await translateOpenAICompat(testText, key, "https://open.bigmodel.cn/api/paas/v4/chat/completions", model || "glm-4.7-flash");
     } else if (provider === "spark") {
       if (!key) return json({ success: false, error: "缺少 API Key" });
-      translated = await translateOpenAICompat(testText, key, "https://spark-api-open.xf-yun.com/v1/chat/completions", "lite");
+      translated = await translateOpenAICompat(testText, key, "https://spark-api-open.xf-yun.com/v1/chat/completions", model || "lite");
     } else if (provider === "yi") {
       if (!key) return json({ success: false, error: "缺少 API Key" });
-      translated = await translateOpenAICompat(testText, key, "https://api.lingyiwanwu.com/v1/chat/completions", "yi-lightning");
+      translated = await translateOpenAICompat(testText, key, "https://api.lingyiwanwu.com/v1/chat/completions", model || "yi-lightning");
     } else if (provider === "hunyuan") {
       if (!key) return json({ success: false, error: "缺少 API Key" });
-      translated = await translateOpenAICompat(testText, key, "https://tokenhub.tencentmaas.com/v1/chat/completions", "hunyuan-turbo");
+      translated = await translateOpenAICompat(testText, key, "https://tokenhub.tencentmaas.com/v1/chat/completions", model || "hunyuan-turbo");
     } else {
       return json({ success: false, error: `未知 provider: ${provider}` }, 400);
     }
