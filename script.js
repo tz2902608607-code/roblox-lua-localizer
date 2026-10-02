@@ -153,6 +153,7 @@ const state = {
   aiPrompt: "",
   translateFrom: "en",
   translateTo: "zh",
+  selectedModels: {},
 };
 
 const LOCAL_TRANSLATION_DICTIONARY = {
@@ -273,6 +274,39 @@ const KEY_PROVIDERS = {
 };
 
 const AI_PROVIDERS = ["deepseek", "doubao", "kimi", "openai", "gemini", "baiduai", "qwen", "glm", "spark", "yi", "hunyuan", "customai"];
+// 各 AI 接口的推荐模型（与后端 list-models.js 的 RECOMMENDED 保持一致）
+const RECOMMENDED_MODELS = {
+  openai: ["gpt-4o-mini", "gpt-4o", "gpt-3.5-turbo"],
+  deepseek: ["deepseek-chat", "deepseek-reasoner"],
+  doubao: ["doubao-pro-32k", "doubao-pro-128k", "doubao-lite-32k"],
+  kimi: ["moonshot-v1-8k", "moonshot-v1-32k", "moonshot-v1-128k"],
+  qwen: ["qwen-turbo", "qwen-plus", "qwen-max", "qwen-long"],
+  glm: ["glm-4.7-flash", "glm-4-flash", "glm-4-plus", "glm-4-air"],
+  spark: ["lite", "generalv3.5", "max-32k", "4.0Ultra"],
+  yi: ["yi-lightning", "yi-large", "yi-medium"],
+  hunyuan: ["hunyuan-turbo", "hunyuan-lite", "hunyuan-pro"],
+  gemini: ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"],
+  baiduai: ["ernie-speed-128k", "ernie-4.0-8k", "ernie-3.5-8k"],
+  customai: [],
+};
+// 未选择模型时各接口的默认模型（与后端保持一致）
+const DEFAULT_MODELS = {
+  openai: "gpt-3.5-turbo",
+  deepseek: "deepseek-chat",
+  doubao: "doubao-pro-32k",
+  kimi: "moonshot-v1-8k",
+  qwen: "qwen-turbo",
+  glm: "glm-4.7-flash",
+  spark: "lite",
+  yi: "yi-lightning",
+  hunyuan: "hunyuan-turbo",
+  gemini: "gemini-2.0-flash",
+  baiduai: "ernie-speed-128k",
+  customai: "",
+};
+// 模型列表缓存：provider -> { models, recommended, source, note }
+const modelListCache = {};
+const modelListLoading = {};
 
 const els = {
   bgImage: document.querySelector("#bgImage"),
@@ -469,6 +503,8 @@ function getApiKeys() {
 function syncApiKeysFromDom() {
   if (els.apiKeyFields) {
     els.apiKeyFields.querySelectorAll("input").forEach((input) => {
+      // 模型选择器的手动输入框不属于 API Key 字段
+      if (input.classList.contains("model-manual-input")) return;
       state.apiKeys[input.id] = input.value?.trim() || "";
     });
   }
@@ -579,6 +615,12 @@ function renderApiKeyFields(provider) {
         if (field) params.set("key", keys[field.id] || "");
       }
 
+      // 附加用户选择的翻译模型（customai 已在上方处理）
+      if (AI_PROVIDERS.includes(provider) && provider !== "customai") {
+        const chosenModel = getSelectedModel(provider);
+        if (chosenModel) params.set("model", chosenModel);
+      }
+
       if (turnstileToken) {
         params.set("cf-turnstile-response", turnstileToken);
       }
@@ -620,9 +662,246 @@ function renderApiKeyFields(provider) {
     btnRow.append(applyBtn);
   }
 
+  renderModelPicker(provider);
   els.apiKeyFields.append(btnRow);
 }
 
+// ===== 模型选择器 =====
+// 自定义 AI 的模型名由字段输入框承载，其余接口的模型名存在 state.selectedModels
+function modelInputId(provider) {
+  return provider === "customai" ? "customaiModel" : "";
+}
+function getSelectedModel(provider) {
+  const id = modelInputId(provider);
+  if (id) {
+    const input = document.getElementById(id);
+    if (input) return input.value.trim();
+  }
+  return (state.selectedModels || {})[provider] || "";
+}
+function setSelectedModel(provider, model) {
+  if (!state.selectedModels) state.selectedModels = {};
+  state.selectedModels[provider] = model || "";
+  const id = modelInputId(provider);
+  if (id) {
+    const input = document.getElementById(id);
+    if (input) input.value = model || "";
+  }
+  saveState();
+}
+function providerKeyFieldId(provider) {
+  const config = KEY_PROVIDERS[provider];
+  if (!config || !config.fields) return "";
+  const field = config.fields.find((f) => f.id.includes("Key"));
+  return field ? field.id : "";
+}
+// 该接口是否已具备拉取模型列表所需的凭证
+function hasModelCredentials(provider) {
+  const keys = state.apiKeys || {};
+  if (provider === "customai") return !!keys["customaiKey"];
+  if (provider === "baiduai") return !!keys["baiduAiApiKey"];
+  const id = providerKeyFieldId(provider);
+  return id ? !!keys[id] : false;
+}
+// 从上游拉取模型列表
+async function fetchModels(provider) {
+  modelListLoading[provider] = true;
+  const params = new URLSearchParams({ provider });
+  syncApiKeysFromDom();
+  const keys = state.apiKeys || {};
+  if (provider === "customai") {
+    params.set("apiurl", keys["customaiApiUrl"] || "");
+    params.set("key", keys["customaiKey"] || "");
+  } else if (provider === "baiduai") {
+    params.set("appid", keys["baiduAiApiKey"] || "");
+    params.set("appkey", keys["baiduAiSecretKey"] || "");
+  } else {
+    const id = providerKeyFieldId(provider);
+    if (id) params.set("key", keys[id] || "");
+  }
+  if (turnstileToken) params.set("cf-turnstile-response", turnstileToken);
+  try {
+    const res = await fetchWithTimeout(`/api/list-models?${params.toString()}`, {}, 15000);
+    const data = await res.json();
+    if (data?.success && Array.isArray(data.models)) {
+      modelListCache[provider] = {
+        models: data.models,
+        recommended: Array.isArray(data.recommended) ? data.recommended : [],
+        source: data.source || "builtin",
+        note: data.note || "",
+      };
+      if (data.source === "upstream") {
+        showToast(`已从上游获取 ${data.models.length} 个模型`);
+      } else if (data.note) {
+        showToast(data.note);
+      }
+    } else {
+      showToast(`获取模型列表失败：${data?.error || "未知错误"}`);
+    }
+  } catch (err) {
+    showToast(`获取模型列表失败：${err?.message || "网络错误"}`);
+  } finally {
+    modelListLoading[provider] = false;
+  }
+}
+function renderModelPicker(provider) {
+  if (!els.apiKeyFields) return;
+  if (!AI_PROVIDERS.includes(provider)) return;
+  const isCustom = provider === "customai";
+  const picker = document.createElement("div");
+  picker.className = "model-picker";
+  picker.dataset.provider = provider;
+
+  const head = document.createElement("div");
+  head.className = "model-picker-head";
+  const title = document.createElement("span");
+  title.className = "model-picker-title";
+  title.textContent = "翻译模型";
+  const tabs = document.createElement("div");
+  tabs.className = "model-tabs";
+  const tabRecommended = document.createElement("button");
+  tabRecommended.type = "button";
+  tabRecommended.className = "model-tab active";
+  tabRecommended.dataset.tab = "recommended";
+  tabRecommended.textContent = "推荐模型";
+  const tabAll = document.createElement("button");
+  tabAll.type = "button";
+  tabAll.className = "model-tab";
+  tabAll.dataset.tab = "all";
+  tabAll.textContent = "全部模型";
+  tabs.append(tabRecommended, tabAll);
+  const refreshBtn = document.createElement("button");
+  refreshBtn.type = "button";
+  refreshBtn.className = "model-refresh-btn";
+  refreshBtn.textContent = "获取模型";
+  refreshBtn.title = "填入 API Key 后从上游获取模型列表";
+  head.append(title, tabs, refreshBtn);
+
+  const select = document.createElement("select");
+  select.className = "model-select";
+
+  const hint = document.createElement("div");
+  hint.className = "model-hint";
+  const noteEl = document.createElement("span");
+  noteEl.className = "model-note";
+  const manualBtn = document.createElement("button");
+  manualBtn.type = "button";
+  manualBtn.className = "model-manual-btn";
+  manualBtn.textContent = "手动输入";
+  hint.append(noteEl);
+  if (!isCustom) hint.append(manualBtn);
+
+  const manualInput = document.createElement("input");
+  manualInput.type = "text";
+  manualInput.id = `model-manual-${provider}`;
+  manualInput.className = "model-manual-input hidden";
+  manualInput.placeholder = "自定义模型名称，如 deepseek-chat";
+  manualInput.autocomplete = "off";
+
+  picker.append(head, select, hint, manualInput);
+  els.apiKeyFields.append(picker);
+
+  let activeTab = "recommended";
+  const fillOptions = () => {
+    const cache = modelListCache[provider] || {};
+    const builtinRecommended = RECOMMENDED_MODELS[provider] || [];
+    const upstreamRecommended = cache.source === "upstream" && cache.recommended?.length
+      ? cache.recommended
+      : [];
+    const list = activeTab === "recommended"
+      ? (upstreamRecommended.length ? upstreamRecommended : builtinRecommended)
+      : (cache.models || builtinRecommended);
+    const current = getSelectedModel(provider);
+    select.innerHTML = "";
+    const defaultOpt = document.createElement("option");
+    defaultOpt.value = "";
+    defaultOpt.textContent = `默认（${DEFAULT_MODELS[provider] || "上游默认"}）`;
+    select.append(defaultOpt);
+    list.forEach((m) => {
+      const opt = document.createElement("option");
+      opt.value = m;
+      opt.textContent = m;
+      select.append(opt);
+    });
+    if (current && !list.includes(current)) {
+      const opt = document.createElement("option");
+      opt.value = current;
+      opt.textContent = current;
+      select.append(opt);
+    }
+    select.value = current || "";
+    if (modelListLoading[provider]) {
+      noteEl.textContent = "正在从上游获取模型列表...";
+    } else if (cache.source === "upstream") {
+      noteEl.textContent = `已从上游获取 ${cache.models.length} 个模型，共 ${cache.recommended.length} 个推荐`;
+    } else if (cache.note) {
+      noteEl.textContent = cache.note;
+    } else if (activeTab === "all") {
+      noteEl.textContent = "填入 API Key 后点击「获取模型」，可拉取上游全部模型";
+    } else {
+      noteEl.textContent = "内置推荐模型，填入 API Key 后可获取上游全部模型";
+    }
+  };
+
+  tabs.querySelectorAll(".model-tab").forEach((tab) => {
+    tab.addEventListener("click", () => {
+      activeTab = tab.dataset.tab;
+      tabs.querySelectorAll(".model-tab").forEach((t) => t.classList.toggle("active", t === tab));
+      fillOptions();
+    });
+  });
+  refreshBtn.addEventListener("click", async () => {
+    syncApiKeysFromDom();
+    if (!hasModelCredentials(provider)) {
+      showToast(provider === "customai" ? "请先填写 API Key" : "请先填写 API Key");
+      return;
+    }
+    refreshBtn.disabled = true;
+    const oldText = refreshBtn.textContent;
+    refreshBtn.textContent = "获取中...";
+    await fetchModels(provider);
+    refreshBtn.disabled = false;
+    refreshBtn.textContent = oldText;
+    fillOptions();
+  });
+  select.addEventListener("change", () => {
+    setSelectedModel(provider, select.value);
+    manualInput.value = select.value;
+    if (select.value) showToast(`已选择模型：${select.value}`);
+  });
+  manualBtn.addEventListener("click", () => {
+    const willShow = manualInput.classList.contains("hidden");
+    manualInput.classList.toggle("hidden", !willShow);
+    manualBtn.classList.toggle("active", willShow);
+    if (willShow) {
+      manualInput.value = getSelectedModel(provider);
+      manualInput.focus();
+    }
+  });
+  manualInput.addEventListener("input", () => {
+    if (!state.selectedModels) state.selectedModels = {};
+    state.selectedModels[provider] = manualInput.value.trim();
+  });
+  manualInput.addEventListener("change", () => {
+    const value = manualInput.value.trim();
+    setSelectedModel(provider, value);
+    fillOptions();
+    if (value) showToast(`已使用自定义模型：${value}`);
+  });
+
+  // 延迟到当前同步流程结束后再读取状态（确保 loadState 已完成恢复）
+  window.setTimeout(() => {
+    if (!document.body.contains(picker)) return;
+    const current = getSelectedModel(provider);
+    if (current && !isCustom) {
+      manualInput.value = current;
+    }
+    fillOptions();
+    if (hasModelCredentials(provider)) {
+      fetchModels(provider).then(fillOptions);
+    }
+  }, 0);
+}
 function saveState() {
   const payload = {
     hookEnabled: els.hookEnabled.checked,
@@ -634,6 +913,7 @@ function saveState() {
     aiPrompt: state.aiPrompt,
     translateFrom: state.translateFrom,
     translateTo: state.translateTo,
+    selectedModels: state.selectedModels || {},
   };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
 }
@@ -649,6 +929,10 @@ function loadState() {
     }
 
     const payload = JSON.parse(raw);
+    // 模型选择需要在渲染 Key 面板之前恢复，避免选择器被重置
+    if (payload.selectedModels && typeof payload.selectedModels === "object") {
+      state.selectedModels = payload.selectedModels;
+    }
     els.hookEnabled.checked = currentRaw ? (payload.hookEnabled ?? false) : false;
     els.scanInterval.value = String(payload.scanInterval || "3");
     els.rawUrl.value = payload.rawUrl || "";
@@ -901,6 +1185,13 @@ async function translateViaProxy(provider, text) {
     }
   }
 
+  // 附加用户选择的翻译模型（AI 接口）
+  if (AI_PROVIDERS.includes(provider) && provider !== "customai") {
+    const chosenModel = getSelectedModel(provider);
+    if (chosenModel) {
+      url += `&model=${encodeURIComponent(chosenModel)}`;
+    }
+  }
   // AI 接口响应较慢，给更长的超时；免费接口给较短的超时
   const isAiProvider = AI_PROVIDERS.includes(provider);
   const timeout = isAiProvider ? 18000 : 10000;
@@ -974,7 +1265,7 @@ async function translateWithGoogleDirect(text) {
 async function translateWithMyMemoryDirect(text) {
   const from = langToApi(state.translateFrom) === "zh" ? "zh-CN" : (langToApi(state.translateFrom) === "auto" ? "" : langToApi(state.translateFrom));
   const to = langToApi(state.translateTo) === "zh" ? "zh-CN" : langToApi(state.translateTo);
-  const langpair = from ? `${from}|${to}` : to;
+  const langpair = from ? `${from}|${to}` : `|${to}`;
   const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${langpair}`;
   const response = await fetchWithTimeout(url);
   if (!response.ok) throw new Error("MyMemory 翻译接口请求失败");
@@ -1263,7 +1554,7 @@ function buildLuaScript() {
   const hookValue = useHook ? "true" : "false";
 
   let script = `-- Roblox 汉化脚本
--- 由 Roblox 汉化脚本在线生成器生成 (v3.2.2)
+-- 由 Roblox 汉化脚本在线生成器生成 (v3.3.0)
 -- 生成时间: ${today}
 
 _G.ForsakenHanHuaActive = true

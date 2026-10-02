@@ -1776,6 +1776,144 @@ footer {
   opacity: 0.7;
 }
 
+
+/* ===== 翻译模型选择器（AI 接口）===== */
+.model-picker {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 12px 14px;
+  border: 1px solid rgba(157, 231, 255, 0.16);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.model-picker-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.model-picker-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: 0.02em;
+}
+
+.model-tabs {
+  display: inline-flex;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  background: rgba(5, 13, 27, 0.5);
+}
+
+.model-tab {
+  padding: 4px 12px;
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.model-tab:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.model-tab.active {
+  color: #07101d;
+  background: linear-gradient(135deg, var(--primary), var(--primary-2));
+}
+
+.model-refresh-btn {
+  margin-left: auto;
+  padding: 6px 14px;
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--primary);
+  background: rgba(78, 203, 255, 0.1);
+  border: 1px solid rgba(78, 203, 255, 0.3);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.15s;
+}
+
+.model-refresh-btn:hover:not(:disabled) {
+  background: rgba(78, 203, 255, 0.2);
+  transform: translateY(-1px);
+}
+
+.model-refresh-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.model-select {
+  min-height: 38px;
+  padding: 0 12px;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.model-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 0.72rem;
+}
+
+.model-note {
+  flex: 1;
+  min-width: 0;
+  color: var(--muted);
+  line-height: 1.5;
+  opacity: 0.75;
+}
+
+.model-manual-btn {
+  padding: 4px 10px;
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--primary);
+  background: rgba(78, 203, 255, 0.08);
+  border: 1px solid rgba(78, 203, 255, 0.25);
+  border-radius: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.2s, color 0.2s;
+}
+
+.model-manual-btn:hover {
+  background: rgba(78, 203, 255, 0.18);
+}
+
+.model-manual-btn.active {
+  color: #07101d;
+  background: linear-gradient(135deg, var(--primary), var(--primary-2));
+  border-color: transparent;
+}
+
+.model-manual-input {
+  min-height: 38px;
+  padding: 0 12px;
+  font-size: 0.82rem;
+}
+
+.model-manual-input.hidden {
+  display: none;
+}
 /* 全尺寸响应式适配：手表/超小屏、手机、平板、电脑、电视 */
 @media (min-width: 1280px) {
   .page-shell {

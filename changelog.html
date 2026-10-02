@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>更新日志 - Roblox 汉化工具</title>
-    <link rel="stylesheet" href="./style.css?v=20260628-changelog" />
+    <link rel="stylesheet" href="./style.css?v=20261002-model-picker" />
     <style>
       .changelog-page {
         max-width: 720px;
@@ -99,6 +99,20 @@
 
     <main class="changelog-page">
       <h1 class="changelog-title">更新日志</h1>
+
+      <div class="version-card">
+        <div class="version-header">
+          <span class="version-tag">v3.3.0</span>
+          <span class="version-date">2026-10-02</span>
+        </div>
+        <ul>
+          <li>AI 翻译接口新增「翻译模型」选择器：填入 API Key 后可一键从上游获取可用模型列表</li>
+          <li>支持「推荐模型 / 全部模型」两种展示维度，未获取上游列表时展示内置推荐模型</li>
+          <li>支持手动输入自定义模型名，未选择模型时自动回退到原有默认模型，保持向后兼容</li>
+          <li>新增 /api/list-models 接口，兼容 OpenAI 格式与 Gemini 模型列表格式，上游不可用时回退内置列表</li>
+          <li>翻译请求与「测试 Key」请求会自动携带当前选择的模型参数</li>
+        </ul>
+      </div>
 
       <div class="version-card">
         <div class="version-header">

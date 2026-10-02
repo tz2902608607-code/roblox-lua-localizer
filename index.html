@@ -8,7 +8,7 @@
       content="Roblox 汉化脚本在线生成器，可根据英文原文与中文翻译生成 Roblox Lua 汉化脚本。"
     />
     <title>Roblox 汉化脚本在线生成器</title>
-    <link rel="stylesheet" href="./style.css?v=20260627-dropdown-v2" />
+    <link rel="stylesheet" href="./style.css?v=20261002-model-picker" />
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
   </head>
   <body>
@@ -26,7 +26,7 @@
       <div class="brand">
         <strong>Roblox 汉化工具</strong>
         <small>正式版</small>
-        <a href="./changelog.html" class="version-badge" title="查看更新日志">v3.2.2</a>
+        <a href="./changelog.html" class="version-badge" title="查看更新日志">v3.3.0</a>
         <div class="site-stats" id="siteStats">
           <span id="statsOnline" title="当前在线">-</span>
           <span class="stats-sep">|</span>
@@ -279,7 +279,7 @@
                 <p>
                   在目标游戏中执行以下 UI 文本提取脚本，它会自动抓取当前页面的英文 UI 文本并输出到控制台，方便你复制到本工具的词条列表中。
                 </p>
-                <pre><code id="extractCode">loadstring(game:HttpGet("https://raw.githubusercontent.com/suif666/suif/refs/heads/main/UI_Text_Collector_Optimized_v21.lua"))()</code></pre>
+                <pre><code id="extractCode">loadstring(game:HttpGet("https://raw.githubusercontent.com/tz2902608607-code/utcm-/refs/heads/main/UI%20extraction.lua"))()</code></pre>
                 <button id="copyExtractBtn" class="btn" type="button">复制提取脚本</button>
                 <p>
                   <strong>提示：</strong>提取完成后，复制输出的文本，回到本工具继续操作。
@@ -426,6 +426,6 @@
       </div>
     </div>
 
-    <script src="./script.js?v=20260627-dropdown-v2" data-cfasync="false"></script>
+    <script src="./script.js?v=20261002-model-picker" data-cfasync="false"></script>
   </body>
 </html>
